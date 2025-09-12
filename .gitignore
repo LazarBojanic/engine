@@ -1,0 +1,5 @@
+.idea
+cmake-build-debug-system
+cmake-build-release-system
+assets
+libraries
