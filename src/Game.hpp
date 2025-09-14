@@ -16,7 +16,7 @@
 class Game {
 private:
     std::string workingDirectory;
-    std::string ASSETS_PATH = "/home/lazar/dev/c-cpp/engine/assets/";
+    std::string ASSETS_PATH = "C:\\dev\\C-CPP\\engine\\assets\\";
     static Game* instance;
     std::shared_ptr<ma_engine> soundEngine;
     bool* keys;
