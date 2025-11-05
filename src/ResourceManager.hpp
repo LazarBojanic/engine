@@ -29,6 +29,7 @@ private:
 	std::vector<std::shared_ptr<CubeMap>> cubeMapList;
 	std::vector<std::shared_ptr<Skybox>> skyboxList;
 public:
+	inline static std::filesystem::path ASSETS_PATH = std::filesystem::path("assets");
 	static ResourceManager* getInstance();
 
 	std::shared_ptr<DrawData> addDrawData(std::shared_ptr<DrawData> drawData);

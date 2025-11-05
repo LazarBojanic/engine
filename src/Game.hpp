@@ -12,11 +12,11 @@
 #include "Window.hpp"
 #include "Application.hpp"
 #include "miniaudio/miniaudio.h"
+#include <filesystem>
 
 class Game {
 private:
     std::string workingDirectory;
-    std::string ASSETS_PATH = "C:\\dev\\C-CPP\\engine\\assets\\";
     static Game* instance;
     std::shared_ptr<ma_engine> soundEngine;
     bool* keys;

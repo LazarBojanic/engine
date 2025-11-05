@@ -40,7 +40,7 @@ ModelDrawData::ModelDrawData(const std::string& name, const std::string& path, s
     this->guid = Util::generateGUID();
     this->name = name;
     this->path = path;
-    this->directory = path.substr(path.find_last_of('\\') + 1);
+    this->directory = path.substr(path.find_last_of('/') + 1);
     this->gammaCorrection = false;
     this->mesh = std::make_shared<Mesh>(name + "Mesh");
     this->material = material;
@@ -74,7 +74,7 @@ void ModelDrawData::loadAssimpModel(const std::string& path) {
         std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
         return;
     }
-    this->directory = path.substr(0, path.find_last_of('\\'));
+    this->directory = path.substr(0, path.find_last_of('/'));
 
     // Load materials/textures once
     for (unsigned int i = 0; i < scene->mNumMaterials; i++) {
@@ -196,7 +196,7 @@ void ModelDrawData::loadMaterialTextures(aiMaterial* aiMaterial, aiTextureType t
     for (unsigned int i = 0; i < aiMaterial->GetTextureCount(type); i++) {
         aiString texturePath;
         auto res = aiMaterial->GetTexture(type, i, &texturePath);
-        std::string fullTexturePath = this->directory + "\\" + texturePath.C_Str();
+        std::string fullTexturePath = this->directory + "/" + texturePath.C_Str();
         if (res == AI_SUCCESS) {
             std::shared_ptr<Texture> texture = std::make_shared<Texture>(fullTexturePath, textureType);
             texture->setName(texture->getType().name + "0");

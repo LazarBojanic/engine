@@ -28,6 +28,14 @@ list(APPEND PROJECT_SOURCES "${VENDOR_SRC_DIR}/glad/glad.c")
 add_executable(main ${PROJECT_SOURCES})
 target_include_directories(main PRIVATE ${VENDOR_INCLUDE_DIR})
 
+add_custom_command(TARGET main POST_BUILD
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+	"${CMAKE_SOURCE_DIR}/assets" $<TARGET_FILE_DIR:main>/assets
+
+	COMMAND ${CMAKE_COMMAND} -E copy_directory
+	"${CMAKE_SOURCE_DIR}/libraries" $<TARGET_FILE_DIR:main>/libraries
+)
+
 if(WIN32)
 	target_link_directories(main PRIVATE
 		${VENDOR_LIB_DIR}/GLFW
