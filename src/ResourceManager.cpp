@@ -35,7 +35,7 @@ ResourceManager* ResourceManager::getInstance() {
 std::filesystem::path ResourceManager::getAssetPath(const std::string& relativePath) {
     std::filesystem::path path = std::filesystem::current_path() / "res" / relativePath;
     std::filesystem::path absolutePath = std::filesystem::absolute(path);
-    std::cout << "Trying to load: " << absolutePath << std::endl;
+    std::cout << "Trying to load: " << absolutePath.generic_string() << std::endl;
     return absolutePath;
 }
 
