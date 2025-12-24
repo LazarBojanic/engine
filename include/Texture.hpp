@@ -8,7 +8,7 @@
 class Texture{
 private:
 	std::string guid;
-	std::string path;
+	std::filesystem::path path;
     std::string name;
 	TextureType type;
 	unsigned int mode;

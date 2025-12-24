@@ -1,6 +1,7 @@
 
 #include "CubeMap.hpp"
 
+#include "ResourceManager.hpp"
 
 CubeMap::CubeMap() {
     this->guid = Util::generateGUID();
@@ -27,11 +28,15 @@ CubeMap::CubeMap(const std::string& name, std::vector<std::string> facePaths) {
     this->wrap_R = GL_CLAMP_TO_EDGE;
     this->filterMin = GL_LINEAR;
     this->filterMax = GL_LINEAR;
-    this->facePaths = facePaths;
-	generate(facePaths);
+    this->facePaths = std::vector<std::string>();
+    for (auto& facePath : facePaths) {
+        this->facePaths.push_back(ResourceManager::getInstance()->getAssetPath(facePath).string());
+    }
+	generate(this->facePaths);
 }
 
 CubeMap::~CubeMap() {
+    glDeleteTextures(1, &this->cubeMapId);
 }
 
 void CubeMap::bind(unsigned int textureChannel) {
@@ -73,7 +78,7 @@ void CubeMap::generate(std::vector<std::string> facePaths) {
             stbi_image_free(data);
         }
         else {
-            std::cout << "Cubemap texture failed to load at path: " << facePaths.at(i) << std::endl;
+            std::cout << "CubeMap texture failed to load at path: " << facePaths.at(i) << std::endl;
             stbi_image_free(data);
         }
     }

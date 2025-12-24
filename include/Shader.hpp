@@ -12,8 +12,6 @@ private:
 	std::string guid;
 	std::string name;
 	unsigned int shaderProgram;
-	std::string vertexShaderPath;
-	std::string fragmentShaderPath;
 	std::string vertexShaderSource;
 	std::string fragmentShaderSource;
 	unsigned int vertexShaderID;
@@ -50,13 +48,6 @@ public:
 
 	unsigned int getShaderProgram() {
 		return this->shaderProgram;
-	}
-
-	const std::string& getVertexShaderPath() {
-		return this->vertexShaderPath;
-	}
-	const std::string& getFragmentShaderPath() {
-		return this->fragmentShaderPath;
 	}
 
 	const std::string& getVertexShaderSource() {

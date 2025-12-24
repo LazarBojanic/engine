@@ -14,6 +14,15 @@ ResourceManager::ResourceManager() {
     this->skyboxList = std::vector<std::shared_ptr<Skybox>>();
 }
 ResourceManager::~ResourceManager() {
+    this->drawDataList.clear();
+    this->modelDrawDataList.clear();
+    this->meshList.clear();
+    this->shaderList.clear();
+    this->materialList.clear();
+    this->lightList.clear();
+    this->textureList.clear();
+    this->cubeMapList.clear();
+    this->skyboxList.clear();
     
 }
 ResourceManager* ResourceManager::getInstance() {
@@ -21,6 +30,13 @@ ResourceManager* ResourceManager::getInstance() {
         instance = new ResourceManager();
     }
     return instance;
+}
+
+std::filesystem::path ResourceManager::getAssetPath(const std::string& relativePath) {
+    std::filesystem::path path = std::filesystem::current_path() / "res" / relativePath;
+    std::filesystem::path absolutePath = std::filesystem::absolute(path);
+    std::cout << "Trying to load: " << absolutePath << std::endl;
+    return absolutePath;
 }
 
 std::shared_ptr<DrawData> ResourceManager::addDrawData(std::shared_ptr<DrawData> drawData) {

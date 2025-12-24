@@ -1,5 +1,5 @@
 .idea
-cmake-build-debug-system
-cmake-build-release-system
-assets
-libraries
+cmake-build-debug
+cmake-build-release
+res
+vendor

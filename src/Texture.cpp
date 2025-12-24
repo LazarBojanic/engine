@@ -1,5 +1,6 @@
 #include "Texture.hpp"
 
+#include "ResourceManager.hpp"
 
 Texture::Texture() {
     this->guid = Util::generateGUID();
@@ -20,7 +21,7 @@ Texture::Texture() {
 Texture::Texture(const std::string& name, const std::string& path, TextureType type) {
     this->guid = Util::generateGUID();
     this->name = name;
-    this->path = path;
+    this->path = ResourceManager::getInstance()->getAssetPath(path).string();
     this->type = type;
     this->mode = GL_TEXTURE_2D;
     this->wrap_S = GL_REPEAT;

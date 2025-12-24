@@ -1,5 +1,6 @@
 #include "ModelDrawData.hpp"
 
+#include "ResourceManager.hpp"
 
 ModelDrawData::ModelDrawData() {
     this->guid = Util::generateGUID();
@@ -39,8 +40,9 @@ ModelDrawData::ModelDrawData(const std::string& name, const std::string& path, s
         SHADING_TYPE shadingType) {
     this->guid = Util::generateGUID();
     this->name = name;
-    this->path = path;
-    this->directory = path.substr(path.find_last_of('/') + 1);
+    std::filesystem::path temp = ResourceManager::getInstance()->getAssetPath(path);
+    this->path = temp.string();
+    this->directory = temp.parent_path().string();
     this->gammaCorrection = false;
     this->mesh = std::make_shared<Mesh>(name + "Mesh");
     this->material = material;
@@ -57,24 +59,23 @@ ModelDrawData::ModelDrawData(const std::string& name, const std::string& path, s
     this->useTextureMetalness = useTextureMetalness;
     this->useTextureAmbientOcclusion = useTextureAmbientOcclusion;
     this->shadingType = shadingType;
-    this->loadAssimpModel(path);
+    this->loadAssimpModel(this->path);
     this->updateShaderTextures();
 }
 
 
 ModelDrawData::~ModelDrawData() {
+
 }
 
 void ModelDrawData::loadAssimpModel(const std::string& path) {
     Assimp::Importer import;
-    const aiScene* scene = import.
-        ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
+    const aiScene* scene = import.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_CalcTangentSpace);
 
     if (!scene || scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !scene->mRootNode) {
         std::cout << "ERROR::ASSIMP::" << import.GetErrorString() << std::endl;
         return;
     }
-    this->directory = path.substr(0, path.find_last_of('/'));
 
     // Load materials/textures once
     for (unsigned int i = 0; i < scene->mNumMaterials; i++) {

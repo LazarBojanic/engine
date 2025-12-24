@@ -71,21 +71,19 @@ void Game::initResources() {
 	std::shared_ptr<Mesh> cubeMesh = ResourceManager::getInstance()->addMesh("cubeMesh", cubeGeometry);
 
 	std::vector<std::string> skyboxFacePaths;
-	skyboxFacePaths.push_back(std::filesystem::path(ResourceManager::ASSETS_PATH.concat("/skybox/right.jpg")).string());
-	skyboxFacePaths.push_back(std::filesystem::path(ResourceManager::ASSETS_PATH.concat("/skybox/left.jpg")).string());
-	skyboxFacePaths.push_back(std::filesystem::path(ResourceManager::ASSETS_PATH.concat("/skybox/top.jpg")).string());
-	skyboxFacePaths.push_back(std::filesystem::path(ResourceManager::ASSETS_PATH.concat("/skybox/bottom.jpg")).string());
-	skyboxFacePaths.push_back(std::filesystem::path(ResourceManager::ASSETS_PATH.concat("/skybox/front.jpg")).string());
-	skyboxFacePaths.push_back(std::filesystem::path(ResourceManager::ASSETS_PATH.concat("/skybox/back.jpg")).string());
+	skyboxFacePaths.emplace_back("textures/skybox/right.jpg");
+	skyboxFacePaths.emplace_back("textures/skybox/left.jpg");
+	skyboxFacePaths.emplace_back("textures/skybox/top.jpg");
+	skyboxFacePaths.emplace_back("textures/skybox/bottom.jpg");
+	skyboxFacePaths.emplace_back("textures/skybox/front.jpg");
+	skyboxFacePaths.emplace_back("textures/skybox/back.jpg");
 
 
 	std::shared_ptr<CubeMap> skyboxCubeMap = ResourceManager::getInstance()->addCubeMap("skyboxCubeMap", skyboxFacePaths);
 
-	std::shared_ptr<Shader> lightShader = ResourceManager::getInstance()->addShader("lightShader", ResourceManager::ASSETS_PATH.concat("/shaders/genericVertexShader.glsl").string(), ResourceManager::ASSETS_PATH.concat("/shaders/lightFragmentShader.glsl"), SHADING_TYPE::PHONG);
-	std::shared_ptr<Shader> skyboxShader = ResourceManager::getInstance()->addShader("skyboxShader", ResourceManager::ASSETS_PATH.concat("/shaders/skyboxVertexShader.glsl"), ResourceManager::ASSETS_PATH.concat("/shaders/skyboxFragmentShader.glsl"), SHADING_TYPE::PHONG);
-
-
-
+	std::shared_ptr<Shader> lightShader = ResourceManager::getInstance()->addShader("lightShader", "shaders/genericVertexShader.glsl", "shaders/lightFragmentShader.glsl", SHADING_TYPE::PHONG);
+	std::shared_ptr<Shader> skyboxShader = ResourceManager::getInstance()->addShader("skyboxShader", "shaders/skyboxVertexShader.glsl", "shaders/skyboxFragmentShader.glsl", SHADING_TYPE::PHONG);
+	
 
 	std::shared_ptr<Light> light = std::make_shared<Light>("light", glm::vec4(1.0f), glm::vec3(0.5f), glm::vec3(0.5f), glm::vec3(0.5f));
 	std::shared_ptr<LightDrawData> lightDrawData = ResourceManager::getInstance()->addLightDrawData("lightDrawData", light, lightMesh, lightShader);
@@ -103,19 +101,19 @@ void Game::initResources() {
 
 	std::shared_ptr<Material> cubeMaterial = ResourceManager::getInstance()->addMaterial("cubeMaterial", glm::vec4(0.0f, 1.0f, 1.0f, 1.0f), glm::vec3(0.5f), glm::vec3(0.5f), glm::vec3(0.5f), 32);
 
-	std::shared_ptr<Shader> cubeShaderPhong = ResourceManager::getInstance()->addShader("cubeShader", ResourceManager::ASSETS_PATH.concat("/shaders/genericVertexShader.glsl"), ResourceManager::ASSETS_PATH.concat("/shaders/genericPhongFragmentShader.glsl"), SHADING_TYPE::PHONG);
-	std::shared_ptr<Shader> cubeShaderPbr = ResourceManager::getInstance()->addShader("cubeShader", ResourceManager::ASSETS_PATH.concat("/shaders/genericVertexShader.glsl"), ResourceManager::ASSETS_PATH.concat("/shaders/genericPbrFragmentShader.glsl"), SHADING_TYPE::PBR);
+	std::shared_ptr<Shader> cubeShaderPhong = ResourceManager::getInstance()->addShader("cubeShader", "shaders/genericVertexShader.glsl", "shaders/genericPhongFragmentShader.glsl", SHADING_TYPE::PHONG);
+	std::shared_ptr<Shader> cubeShaderPbr = ResourceManager::getInstance()->addShader("cubeShader", "shaders/genericVertexShader.glsl", "shaders/genericPbrFragmentShader.glsl", SHADING_TYPE::PBR);
 
 
-	std::shared_ptr<Texture> cubeAlbedoTexture = std::make_shared<Texture>("cubeAlbedoTexture", ResourceManager::ASSETS_PATH.concat("/textures/granite/granite_albedo.png"), TEXTURE_ALBEDO);
-	std::shared_ptr<Texture> cubeDiffuseTexture = std::make_shared<Texture>("cubeDiffuseTexture", ResourceManager::ASSETS_PATH.concat("/textures/granite/granite_diffuse.png"), TEXTURE_DIFFUSE);
-	std::shared_ptr<Texture> cubeSpecularTexture = std::make_shared<Texture>("cubeSpecularTexture", ResourceManager::ASSETS_PATH.concat("/textures/granite/granite_specular.png"), TEXTURE_SPECULAR);
-	std::shared_ptr<Texture> cubeNormalTexture = std::make_shared<Texture>("cubeNormalTexture", ResourceManager::ASSETS_PATH.concat("/textures/granite/granite_normal.png"), TEXTURE_NORMAL);
-	std::shared_ptr<Texture> cubeHeightTexture = std::make_shared<Texture>("cubeHeightTexture", ResourceManager::ASSETS_PATH.concat("/textures/granite/granite_height.png"), TEXTURE_HEIGHT);
-	std::shared_ptr<Texture> cubeRoughnessTexture = std::make_shared<Texture>("cubeRoughnessTexture", ResourceManager::ASSETS_PATH.concat("/textures/granite/granite_roughness.png"), TEXTURE_ROUGHNESS);
-	std::shared_ptr<Texture> cubeShininessTexture = std::make_shared<Texture>("cubeShininessTexture", ResourceManager::ASSETS_PATH.concat("/textures/granite/granite_shininess.png"), TEXTURE_SHININESS);
-	std::shared_ptr<Texture> cubeMetalnessTexture = std::make_shared<Texture>("cubeMetalnessTexture", ResourceManager::ASSETS_PATH.concat("/textures/granite/granite_metalness.png"), TEXTURE_METALNESS);
-	std::shared_ptr<Texture> cubeAmbientOcclusionTexture = std::make_shared<Texture>("cubeAmbientOcclusionTexture", ResourceManager::ASSETS_PATH.concat("/textures/granite/granite_ao.png"), TEXTURE_AMBIENT_OCCLUSION);
+	std::shared_ptr<Texture> cubeAlbedoTexture = std::make_shared<Texture>("cubeAlbedoTexture", "textures/granite/granite_albedo.png", TEXTURE_ALBEDO);
+	std::shared_ptr<Texture> cubeDiffuseTexture = std::make_shared<Texture>("cubeDiffuseTexture", "textures/granite/granite_diffuse.png", TEXTURE_DIFFUSE);
+	std::shared_ptr<Texture> cubeSpecularTexture = std::make_shared<Texture>("cubeSpecularTexture", "textures/granite/granite_specular.png", TEXTURE_SPECULAR);
+	std::shared_ptr<Texture> cubeNormalTexture = std::make_shared<Texture>("cubeNormalTexture", "textures/granite/granite_normal.png", TEXTURE_NORMAL);
+	std::shared_ptr<Texture> cubeHeightTexture = std::make_shared<Texture>("cubeHeightTexture", "textures/granite/granite_height.png", TEXTURE_HEIGHT);
+	std::shared_ptr<Texture> cubeRoughnessTexture = std::make_shared<Texture>("cubeRoughnessTexture", "textures/granite/granite_roughness.png", TEXTURE_ROUGHNESS);
+	std::shared_ptr<Texture> cubeShininessTexture = std::make_shared<Texture>("cubeShininessTexture", "textures/granite/granite_shininess.png", TEXTURE_SHININESS);
+	std::shared_ptr<Texture> cubeMetalnessTexture = std::make_shared<Texture>("cubeMetalnessTexture", "textures/granite/granite_metalness.png", TEXTURE_METALNESS);
+	std::shared_ptr<Texture> cubeAmbientOcclusionTexture = std::make_shared<Texture>("cubeAmbientOcclusionTexture", "textures/granite/granite_ao.png", TEXTURE_AMBIENT_OCCLUSION);
 
 
 	std::shared_ptr<DrawData> cubeDrawData = ResourceManager::getInstance()->addDrawData(
@@ -146,7 +144,7 @@ void Game::initResources() {
 	                                                0.0f, false);
 	//this->generateCubeGrid(25, 2, 25, 10, 10, 10, 5);
 
-	std::shared_ptr<ModelDrawData> backpackModelDrawData = ResourceManager::getInstance()->addModelDrawData("backpackModelDrawData", ResourceManager::ASSETS_PATH.concat("/models/backpack/backpack.obj"), cubeMaterial,  cubeShaderPhong, cubeShaderPbr, SHADING_TYPE::PHONG );
+	std::shared_ptr<ModelDrawData> backpackModelDrawData = ResourceManager::getInstance()->addModelDrawData("backpackModelDrawData", "models/backpack/backpack.obj", cubeMaterial,  cubeShaderPhong, cubeShaderPbr, SHADING_TYPE::PHONG );
 	std::shared_ptr<ModelGameObject> backpackModelGameObject = GameObjectManager::getInstance()->addModelGameObject("backpackGameObject", "backpack", backpackModelDrawData,
 		30, 30, 30,
 		1, 1, 1,

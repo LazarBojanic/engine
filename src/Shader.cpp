@@ -1,9 +1,13 @@
 #include "Shader.hpp"
 
+#include "ResourceManager.hpp"
+
 Shader::Shader() {
 	this->guid = Util::generateGUID();
 	this->name = "";
 	this->shaderType = SHADING_TYPE::PHONG;
+	this->vertexShaderPath = "";
+	this->fragmentShaderPath = "";
 	this->vertexShaderSource = "";
 	this->fragmentShaderSource = "";
 	this->vertexShaderID = 0;
@@ -18,11 +22,11 @@ Shader::Shader(const std::string& name, const std::string& vertexShaderPath, con
 	createVertexShader();
 	createFragmentShader();
 
-	//std::cout << "vertexShaderPath: " << vertexShaderPath << std::endl;
-	//std::cout << "fragmentShaderPath: " << fragmentShaderPath << std::endl;
+	this->vertexShaderPath = ResourceManager::getInstance()->getAssetPath(vertexShaderPath).string();
+	this->fragmentShaderPath = ResourceManager::getInstance()->getAssetPath(fragmentShaderPath).string();
 
-	this->vertexShaderSource = loadShaderSource(vertexShaderPath);
-	this->fragmentShaderSource = loadShaderSource(fragmentShaderPath);
+	this->vertexShaderSource = loadShaderSource(this->vertexShaderPath);
+	this->fragmentShaderSource = loadShaderSource(this->fragmentShaderPath);
 
 	compile(this->vertexShaderID, this->vertexShaderSource);
 	compile(this->fragmentShaderID, this->fragmentShaderSource);
