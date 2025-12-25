@@ -6,6 +6,9 @@
 #define MINIAUDIO_IMPLEMENTATION
 #include "miniaudio/miniaudio.h"
 
+#define FNL_IMPL
+#include "FastNoiseLite/FastNoiseLite.h"
+
 int main() {
     Application* application = Application::getInstance(800, 600, "3D Template");
     application->run();
