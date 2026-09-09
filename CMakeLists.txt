@@ -77,20 +77,33 @@ collect_vendor_static_libraries(VENDOR_STATIC_LIBS)
 target_link_libraries(engine PRIVATE ${VENDOR_STATIC_LIBS})
 
 # -------------------------------
-# Linux system libraries
+# Smart OpenGL detection (Wayland & GLVND aware)
 # -------------------------------
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    target_link_libraries(engine PRIVATE dl pthread X11 Xrandr Xi)
+    # Tell CMake to prefer GLVND (modern Linux GPU architecture) over Legacy GL
+    set(OpenGL_GL_PREFERENCE "GLVND")
+
+    # Request both OpenGL core and EGL components for Wayland compatibility
+    find_package(OpenGL REQUIRED COMPONENTS OpenGL EGL)
+    target_link_libraries(engine PRIVATE OpenGL::OpenGL OpenGL::EGL)
+elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(engine PRIVATE opengl32)
 endif()
 
 # -------------------------------
-# Smart OpenGL detection
+# Linux system libraries (Wayland / X11 Hybrid Support)
 # -------------------------------
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    find_package(OpenGL REQUIRED)
-    target_link_libraries(engine PRIVATE OpenGL::GL)
-elseif (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    target_link_libraries(engine PRIVATE opengl32)
+    find_package(PkgConfig REQUIRED)
+    pkg_check_modules(WAYLAND wayland-client wayland-egl xkbcommon)
+
+    if (WAYLAND_FOUND)
+        message(STATUS "Configuring for Wayland natively")
+        target_link_libraries(engine PRIVATE ${WAYLAND_LIBRARIES} dl pthread)
+    else()
+        message(STATUS "Wayland headers missing, falling back to X11 linkage")
+        target_link_libraries(engine PRIVATE dl pthread X11 Xrandr Xi)
+    endif()
 endif()
 
 # -------------------------------
