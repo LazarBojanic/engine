@@ -38,7 +38,6 @@ endif()
 # -------------------------------
 include_directories(${PROJECT_SOURCE_DIR}/include)
 include_directories(${VENDOR_DIR}/include)
-include_directories(${VENDOR_DIR}/ext-src) # glad headers
 
 # -------------------------------
 # Source files
@@ -46,13 +45,9 @@ include_directories(${VENDOR_DIR}/ext-src) # glad headers
 file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
 # -------------------------------
-# Add platform-specific glad.c
+# External source files
 # -------------------------------
-if (EXISTS "${VENDOR_DIR}/ext-src/glad/glad.c")
-    list(APPEND SOURCES "${VENDOR_DIR}/ext-src/glad/glad.c")
-else()
-    message(FATAL_ERROR "glad.c not found in ${VENDOR_DIR}/ext-src/glad")
-endif()
+list(APPEND SOURCES "${VENDOR_DIR}/ext-src/glad/glad.c" "${VENDOR_DIR}/ext-src/stb/stb_vorbis.c")
 
 # -------------------------------
 # Create executable
