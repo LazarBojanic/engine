@@ -90,14 +90,14 @@ endif()
 # -------------------------------
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_package(PkgConfig REQUIRED)
-    pkg_check_modules(WAYLAND wayland-client wayland-egl xkbcommon)
+    pkg_check_modules(WAYLAND wayland-client wayland-egl xkbcommon EGL)
 
     if (WAYLAND_FOUND)
         message(STATUS "Configuring for Wayland natively")
-        target_link_libraries(engine PRIVATE ${WAYLAND_LIBRARIES} dl pthread)
+        target_link_libraries(engine PRIVATE ${WAYLAND_LIBRARIES} X11 Xrandr Xi m dl pthread)
     else()
         message(STATUS "Wayland headers missing, falling back to X11 linkage")
-        target_link_libraries(engine PRIVATE dl pthread X11 Xrandr Xi)
+        target_link_libraries(engine PRIVATE X11 Xrandr Xi m dl pthread)
     endif()
 endif()
 
