@@ -47,7 +47,19 @@ file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
 # -------------------------------
 # External source files
 # -------------------------------
-list(APPEND SOURCES "${VENDOR_DIR}/ext-src/glad/glad.c" "${VENDOR_DIR}/ext-src/stb/stb_vorbis.c")
+list(APPEND SOURCES
+    "${VENDOR_DIR}/ext-src/glad/glad.c"
+    "${VENDOR_DIR}/ext-src/stb/stb_vorbis.c"
+    "${VENDOR_DIR}/ext-src/imgui/imgui.cpp"
+    "${VENDOR_DIR}/ext-src/imgui/imgui_demo.cpp"
+    "${VENDOR_DIR}/ext-src/imgui/imgui_draw.cpp"
+    "${VENDOR_DIR}/ext-src/imgui/imgui_tables.cpp"
+    "${VENDOR_DIR}/ext-src/imgui/imgui_widgets.cpp"
+    "${VENDOR_DIR}/ext-src/imgui/backends/imgui_impl_glfw.cpp"
+    "${VENDOR_DIR}/ext-src/imgui/backends/imgui_impl_opengl3.cpp"
+    "${VENDOR_DIR}/ext-src/imgui/misc/cpp/imgui_stdlib.cpp"
+    "${VENDOR_DIR}/ext-src/imgui/misc/freetype/imgui_freetype.cpp"
+)
 
 # -------------------------------
 # Create executable

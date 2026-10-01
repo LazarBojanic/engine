@@ -1,7 +1,5 @@
 #include "Game.hpp"
 
-
-
 Game* Game::instance;
 
 Game::Game() {
@@ -18,10 +16,23 @@ Game::Game() {
 	if (ma_engine_init(nullptr, this->soundEngine.get()) != MA_SUCCESS) {
 		std::cerr << "Failed to initialize audio engine." << std::endl;
 	}
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+
+	ImGui_ImplGlfw_InitForOpenGL(Application::getInstance()->getWindow()->getGlfwWindow(), true);          // Second param install_callback=true will install GLFW callbacks and chain to existing ones.
+	ImGui_ImplOpenGL3_Init();
 }
 
 Game::~Game() {
 	delete[] this->keys;
+	ma_engine_uninit(this->soundEngine.get());
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
 }
 
 void Game::initKeys() {
@@ -234,11 +245,17 @@ void Game::orbit(float dt) {
 }
 
 void Game::render() {
+	ImGui_ImplOpenGL3_NewFrame();
+	ImGui_ImplGlfw_NewFrame();
+	ImGui::NewFrame();
+	ImGui::ShowDemoWindow();
 	Renderer::getInstance()->colorBackground(glm::vec4(0.1f, 0.1f, 0.1f, 1.0f));
 	Renderer::getInstance()->drawAll(this->camera, true);
 	Renderer::getInstance()->drawAllModels(this->camera, true);
 	Renderer::getInstance()->drawAllLights(this->camera, true);
 	Renderer::getInstance()->drawSkybox(this->camera);
+	ImGui::Render();
+	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 	glfwSwapBuffers(Application::getInstance()->getWindow()->getGlfwWindow());
 }
 
