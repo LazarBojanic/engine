@@ -38,8 +38,9 @@ void Window::initGlfwWindow() {
     glfwSetScrollCallback(this->glfwWindow, scroll_callback);
     glfwSwapInterval(this->vsync);
     glfwSetWindowPos(this->glfwWindow, 600, 300);
-    glfwSetInputMode(this->glfwWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-    glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+    this->cursorCaptured = false;
+    glfwSetInputMode(this->glfwWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
@@ -97,6 +98,9 @@ void Window::key_callback(GLFWwindow* window, int key, int scancode, int action,
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(window, true);
     }
+    if (key == GLFW_KEY_LEFT_ALT && action == GLFW_PRESS) {
+        Application::getInstance()->getWindow()->toggleCursor();
+    }
     if (key >= 0 && key < 1024) {
         if (action == GLFW_PRESS) {
             Game::getInstance()->getKeys()[key] = true;
@@ -117,6 +121,16 @@ void Window::debugCallback(GLenum source, GLenum type, GLuint id, GLenum severit
 }
 
 void Window::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
+    if (ImGui::GetCurrentContext() != nullptr) {
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.WantCaptureMouse) {
+            return;
+        }
+    }
+    if (!Application::getInstance()->getWindow()->isCursorCaptured()) {
+        return;
+    }
+
     float xpos = static_cast<float>(xposIn);
     float ypos = static_cast<float>(yposIn);
 
@@ -137,7 +151,39 @@ void Window::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
 
 
 void Window::scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-    Game::getInstance()->getCamera()->processMouseScroll(static_cast<float>(yoffset));
+    if (ImGui::GetCurrentContext() != nullptr) {
+        ImGuiIO& io = ImGui::GetIO();
+        if (io.WantCaptureMouse) {
+            return;
+        }
+    }
+    if (Game::getInstance() && Game::getInstance()->getCamera()) {
+        Game::getInstance()->getCamera()->processMouseScroll(static_cast<float>(yoffset));
+    }
+}
+
+void Window::setCursorCaptured(bool captured) {
+    this->cursorCaptured = captured;
+    if (this->cursorCaptured) {
+        glfwSetInputMode(this->glfwWindow, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+        if (Game::getInstance() && Game::getInstance()->getCamera()) {
+            Game::getInstance()->getCamera()->setFirstMouse(true);
+        }
+    } else {
+        glfwSetInputMode(this->glfwWindow, GLFW_CURSOR, GLFW_CURSOR_NORMAL);
+    }
+}
+
+void Window::enableCursor() {
+    setCursorCaptured(false);
+}
+
+void Window::disableCursor() {
+    setCursorCaptured(true);
+}
+
+void Window::toggleCursor() {
+    setCursorCaptured(!this->cursorCaptured);
 }
 
 Window::~Window() {

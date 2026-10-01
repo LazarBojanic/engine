@@ -172,6 +172,17 @@ void Game::start() {
 }
 
 void Game::processInput(float dt) {
+	if (ImGui::GetCurrentContext() != nullptr) {
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.WantCaptureKeyboard) {
+			glfwPollEvents();
+			return;
+		}
+	}
+	if (!Application::getInstance()->getWindow()->isCursorCaptured()) {
+		glfwPollEvents();
+		return;
+	}
 	if (this->keys[GLFW_KEY_W]) {
 		//std::cout << "Pressed W" << std::endl;
 		this->camera->processKeyboard(FORWARD, dt);
@@ -248,7 +259,24 @@ void Game::render() {
 	ImGui_ImplOpenGL3_NewFrame();
 	ImGui_ImplGlfw_NewFrame();
 	ImGui::NewFrame();
-	ImGui::ShowDemoWindow();
+
+	ImGuiDockNodeFlags dockspaceFlags = ImGuiDockNodeFlags_PassthruCentralNode;
+	ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockspaceFlags);
+
+	if (ImGui::Begin("Backpack Properties")) {
+		auto backpack = GameObjectManager::getInstance()->getModelGameObjectByTag("backpack");
+		if (backpack) {
+			float pos[3] = { backpack->getPositionX(), backpack->getPositionY(), backpack->getPositionZ() };
+			if (ImGui::SliderFloat3("Position (X, Y, Z)", pos, -100.0f, 100.0f, "%.2f")) {
+				backpack->setPositionX(pos[0]);
+				backpack->setPositionY(pos[1]);
+				backpack->setPositionZ(pos[2]);
+			}
+		} else {
+			ImGui::TextDisabled("Backpack model object not found.");
+		}
+	}
+	ImGui::End();
 	Renderer::getInstance()->colorBackground(glm::vec4(0.1f, 0.1f, 0.1f, 1.0f));
 	Renderer::getInstance()->drawAll(this->camera, true);
 	Renderer::getInstance()->drawAllModels(this->camera, true);
@@ -256,6 +284,15 @@ void Game::render() {
 	Renderer::getInstance()->drawSkybox(this->camera);
 	ImGui::Render();
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+	ImGuiIO& io = ImGui::GetIO();
+	if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable) {
+		GLFWwindow* backupCurrentContext = glfwGetCurrentContext();
+		ImGui::UpdatePlatformWindows();
+		ImGui::RenderPlatformWindowsDefault();
+		glfwMakeContextCurrent(backupCurrentContext);
+	}
+
 	glfwSwapBuffers(Application::getInstance()->getWindow()->getGlfwWindow());
 }
 

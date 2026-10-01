@@ -13,6 +13,7 @@ private:
     bool fullscreen;
     bool vsync;
     bool resizable;
+    bool cursorCaptured;
     void initGlfw();
     void initGlad();
     void initGlfwWindow();
@@ -99,4 +100,13 @@ public:
     void setResizable(int resizable) {
         this->resizable = resizable;
     }
+
+    bool isCursorCaptured() const {
+        return this->cursorCaptured;
+    }
+
+    void setCursorCaptured(bool captured);
+    void enableCursor();
+    void disableCursor();
+    void toggleCursor();
 };
