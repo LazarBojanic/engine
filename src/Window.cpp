@@ -121,12 +121,6 @@ void Window::debugCallback(GLenum source, GLenum type, GLuint id, GLenum severit
 }
 
 void Window::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
-    if (ImGui::GetCurrentContext() != nullptr) {
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.WantCaptureMouse) {
-            return;
-        }
-    }
     if (!Application::getInstance()->getWindow()->isCursorCaptured()) {
         return;
     }
@@ -151,11 +145,8 @@ void Window::mouse_callback(GLFWwindow* window, double xposIn, double yposIn) {
 
 
 void Window::scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
-    if (ImGui::GetCurrentContext() != nullptr) {
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.WantCaptureMouse) {
-            return;
-        }
+    if (!Application::getInstance()->getWindow()->isCursorCaptured()) {
+        return;
     }
     if (Game::getInstance() && Game::getInstance()->getCamera()) {
         Game::getInstance()->getCamera()->processMouseScroll(static_cast<float>(yoffset));

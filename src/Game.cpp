@@ -157,7 +157,7 @@ void Game::initResources() {
 
 	std::shared_ptr<ModelDrawData> backpackModelDrawData = ResourceManager::getInstance()->addModelDrawData("backpackModelDrawData", "models/backpack/backpack.obj", cubeMaterial,  cubeShaderPhong, cubeShaderPbr, SHADING_TYPE::PHONG );
 	std::shared_ptr<ModelGameObject> backpackModelGameObject = GameObjectManager::getInstance()->addModelGameObject("backpackGameObject", "backpack", backpackModelDrawData,
-		30, 30, 30,
+		this->backpackInitialPosition.x, this->backpackInitialPosition.y, this->backpackInitialPosition.z,
 		1, 1, 1,
 		5, 5, 5,
 		0, 180, 0,
@@ -264,16 +264,31 @@ void Game::render() {
 	ImGui::DockSpaceOverViewport(0, ImGui::GetMainViewport(), dockspaceFlags);
 
 	if (ImGui::Begin("Backpack Properties")) {
-		auto backpack = GameObjectManager::getInstance()->getModelGameObjectByTag("backpack");
-		if (backpack) {
-			float pos[3] = { backpack->getPositionX(), backpack->getPositionY(), backpack->getPositionZ() };
-			if (ImGui::SliderFloat3("Position (X, Y, Z)", pos, -100.0f, 100.0f, "%.2f")) {
-				backpack->setPositionX(pos[0]);
-				backpack->setPositionY(pos[1]);
-				backpack->setPositionZ(pos[2]);
+		if (ImGui::CollapsingHeader("Backpack", ImGuiTreeNodeFlags_DefaultOpen)) {
+			auto backpack = GameObjectManager::getInstance()->getModelGameObjectByTag("backpack");
+			if (backpack) {
+				float posX = backpack->getPositionX();
+				float posY = backpack->getPositionY();
+				float posZ = backpack->getPositionZ();
+
+				if (ImGui::SliderFloat("Position X", &posX, -100.0f, 100.0f, "%.2f")) {
+					backpack->setPositionX(posX);
+				}
+				if (ImGui::SliderFloat("Position Y", &posY, -100.0f, 100.0f, "%.2f")) {
+					backpack->setPositionY(posY);
+				}
+				if (ImGui::SliderFloat("Position Z", &posZ, -100.0f, 100.0f, "%.2f")) {
+					backpack->setPositionZ(posZ);
+				}
+
+				if (ImGui::Button("Reset Position")) {
+					backpack->setPositionX(this->backpackInitialPosition.x);
+					backpack->setPositionY(this->backpackInitialPosition.y);
+					backpack->setPositionZ(this->backpackInitialPosition.z);
+				}
+			} else {
+				ImGui::TextDisabled("Backpack model object not found.");
 			}
-		} else {
-			ImGui::TextDisabled("Backpack model object not found.");
 		}
 	}
 	ImGui::End();
