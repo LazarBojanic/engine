@@ -31,7 +31,7 @@ Texture::Texture(const std::string& name, const std::string& path, TextureType t
     glGenTextures(1, &this->textureID);
     int tempWidth, tempHeight, tempNumberOfChannels;
     stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(this->path.c_str(), &tempWidth, &tempHeight, &tempNumberOfChannels, 0);
+    unsigned char* data = stbi_load(this->path.string().c_str(), &tempWidth, &tempHeight, &tempNumberOfChannels, 0);
     if (tempNumberOfChannels == 1) {
         this->format = GL_RED;
     }
@@ -62,7 +62,7 @@ Texture::Texture(const std::string& path, TextureType type) {
     this->filterMax = GL_LINEAR;
     int tempWidth, tempHeight, tempNumberOfChannels;
     stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(this->path.c_str(), &tempWidth, &tempHeight, &tempNumberOfChannels, 0);
+    unsigned char* data = stbi_load(this->path.string().c_str(), &tempWidth, &tempHeight, &tempNumberOfChannels, 0);
     if (tempNumberOfChannels == 1) {
         this->format = GL_RED;
     }
