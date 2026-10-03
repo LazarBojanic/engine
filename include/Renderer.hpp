@@ -1,28 +1,60 @@
 #pragma once
 
 #include "Util.hpp"
-#include "GameObject.hpp"
-#include "LightGameObject.hpp"
+#include "DrawData.hpp"
+#include "ModelDrawData.hpp"
 #include "Camera.hpp"
-#include "ModelGameObject.hpp"
-#include "Skybox.hpp"
-
+#include "LightGameObject.hpp"
+#include "Transform.hpp"
+#include "Frustum.hpp"
 
 class Renderer {
+public:
+	struct Stats {
+		int drawCalls = 0;
+		int instances = 0;
+		int drawn = 0;
+		int culled = 0;
+	};
+
 private:
 	Renderer();
 	~Renderer();
 	static Renderer* instance;
 
+	struct FrameContext {
+		glm::mat4 view{ 1.0f };
+		glm::mat4 projection{ 1.0f };
+		glm::vec3 viewPos{ 0.0f };
+		float time = 0.0f;
+	};
+
+	FrameContext frame;
+	Frustum frustum;
+	Stats stats;
+
+	bool isVisible(const Transform& transform) const;
 
 public:
 	static Renderer* getInstance();
-	void draw(std::shared_ptr<GameObject> gameObject, std::shared_ptr<Camera> camera, bool scaled);
-	void drawModel(std::shared_ptr<ModelGameObject> modelGameObject, std::shared_ptr<Camera> camera, bool scaled);
-	void drawLight(std::shared_ptr<LightGameObject> lightGameObject, std::shared_ptr<Camera> camera, bool scaled);
-	void drawSkybox(std::shared_ptr<Camera> camera);
-	void drawAll(std::shared_ptr<Camera> camera, bool scaled);
-	void drawAllModels(std::shared_ptr<Camera> camera, bool scaled);
-	void drawAllLights(std::shared_ptr<Camera> camera, bool scaled);
-	void colorBackground(glm::vec4 color);
+
+	void beginFrame(const Camera& camera);
+
+	void draw(const std::shared_ptr<DrawData>& drawData, const Transform& transform, const Camera& camera);
+	void drawModel(const std::shared_ptr<ModelDrawData>& modelDrawData, const Transform& transform, const Camera& camera);
+	void drawLight(const std::shared_ptr<LightGameObject>& lightGameObject, const Camera& camera);
+	void drawSkybox(const Camera& camera);
+
+	void drawInstanced(const std::shared_ptr<DrawData>& drawData, const std::vector<const Transform*>& transforms, const Camera& camera);
+	void drawInstancedModel(const std::shared_ptr<ModelDrawData>& modelDrawData, const std::vector<const Transform*>& transforms, const Camera& camera);
+
+	void drawAll(const Camera& camera);
+	void drawAllModels(const Camera& camera);
+	void drawAllLights(const Camera& camera);
+
+	void colorBackground(const glm::vec4& color);
+
+	const Stats& getStats() const {
+		return this->stats;
+	}
 };

@@ -8,11 +8,6 @@ ModelDrawData::ModelDrawData() {
     this->path = "";
     this->directory = "";
     this->gammaCorrection = false;
-    this->mesh = std::make_shared<Mesh>();
-    this->material = std::make_shared<Material>();
-    this->shaderPhong = shaderPhong;
-    this->shaderPBR = shaderPBR;
-    this->tempGeometryList =  std::vector<std::shared_ptr<Geometry>>();
     this->useTextureAlbedo = true;
     this->useTextureDiffuse = true;
     this->useTextureSpecular = true;
@@ -22,7 +17,7 @@ ModelDrawData::ModelDrawData() {
     this->useTextureShininess = false;
     this->useTextureMetalness = false;
     this->useTextureAmbientOcclusion = false;
-    this->updateShaderTextures();
+    this->shadingType = SHADING_TYPE::PHONG;
 }
 
 
@@ -40,15 +35,14 @@ ModelDrawData::ModelDrawData(const std::string& name, const std::string& path, s
         SHADING_TYPE shadingType) {
     this->guid = Util::generateGUID();
     this->name = name;
-    std::filesystem::path temp = ResourceManager::getInstance()->getAssetPath(path);
+    const std::filesystem::path temp = ResourceManager::getInstance()->getAssetPath(path);
     this->path = temp.string();
     this->directory = temp.parent_path().string();
     this->gammaCorrection = false;
     this->mesh = std::make_shared<Mesh>(name + "Mesh");
-    this->material = material;
-    this->shaderPhong = shaderPhong;
-    this->shaderPBR = shaderPBR;
-    this->tempGeometryList =  std::vector<std::shared_ptr<Geometry>>();
+    this->material = std::move(material);
+    this->shaderPhong = std::move(shaderPhong);
+    this->shaderPBR = std::move(shaderPBR);
     this->useTextureAlbedo = useTextureAlbedo;
     this->useTextureDiffuse = useTextureDiffuse;
     this->useTextureSpecular = useTextureSpecular;
@@ -60,12 +54,10 @@ ModelDrawData::ModelDrawData(const std::string& name, const std::string& path, s
     this->useTextureAmbientOcclusion = useTextureAmbientOcclusion;
     this->shadingType = shadingType;
     this->loadAssimpModel(this->path);
-    this->updateShaderTextures();
 }
 
 
 ModelDrawData::~ModelDrawData() {
-
 }
 
 void ModelDrawData::loadAssimpModel(const std::string& path) {
@@ -77,7 +69,6 @@ void ModelDrawData::loadAssimpModel(const std::string& path) {
         return;
     }
 
-    // Load materials/textures once
     for (unsigned int i = 0; i < scene->mNumMaterials; i++) {
         aiMaterial* aiMat = scene->mMaterials[i];
         this->loadMaterialTextures(aiMat, aiTextureType_BASE_COLOR);
@@ -92,7 +83,7 @@ void ModelDrawData::loadAssimpModel(const std::string& path) {
     }
 
     this->processAssimpModelNode(scene->mRootNode, scene);
-    this->mesh->setGeometryList(tempGeometryList);
+    this->mesh->setGeometryList(this->tempGeometryList);
 }
 
 void ModelDrawData::processAssimpModelNode(aiNode* node, const aiScene* scene) {
@@ -108,6 +99,7 @@ void ModelDrawData::processAssimpModelNode(aiNode* node, const aiScene* scene) {
 std::shared_ptr<Geometry> ModelDrawData::processAssimpMesh(aiMesh* mesh, const aiScene* scene) {
     std::vector<GeometryVertex> vertices;
     std::vector<unsigned int> indices;
+    vertices.reserve(mesh->mNumVertices);
     for (unsigned int i = 0; i < mesh->mNumVertices; i++) {
         GeometryVertex vertex;
         glm::vec4 vector;
@@ -153,51 +145,27 @@ std::shared_ptr<Geometry> ModelDrawData::processAssimpMesh(aiMesh* mesh, const a
             vertex.bitangent = glm::vec3(1.0f);
         }
 
-        /*if (mesh->HasBones()) {
-            for (unsigned int boneIndex = 0; boneIndex < mesh->mNumBones; boneIndex++) {
-                aiBone* bone = mesh->mBones[boneIndex];
-                unsigned int boneId = boneIndex;
-
-                for (unsigned int w = 0; w < bone->mNumWeights; w++) {
-                    aiVertexWeight weight = bone->mWeights[w];
-                    unsigned int vertexId = weight.mVertexId;
-                    float weightValue = weight.mWeight;
-
-                    GeometryVertex& v = vertices[vertexId];
-
-                    // Assign to the first available slot (max 4)
-                    for (int i = 0; i < Util::MAX_BONE_INFLUENCE; i++) {
-                        if (v.weights[i] == 0.0f) {
-                            v.boneIds[i] = static_cast<float>(boneId);
-                            v.weights[i] = weightValue;
-                            break;
-                        }
-                    }
-                }
-            }
-        }*/
         vertex.boneIds = glm::vec4(0.0f);
         vertex.weights = glm::vec4(0.0f);
         vertices.push_back(vertex);
     }
     for (unsigned int i = 0; i < mesh->mNumFaces; i++) {
-        aiFace face = mesh->mFaces[i];
+        const aiFace& face = mesh->mFaces[i];
         for (unsigned int j = 0; j < face.mNumIndices; j++) {
             indices.push_back(face.mIndices[j]);
         }
     }
 
-    std::shared_ptr<Geometry> geometry = std::make_shared<Geometry>(!indices.empty(), vertices, indices);
+    std::shared_ptr<Geometry> geometry = std::make_shared<Geometry>(!indices.empty(), std::move(vertices), std::move(indices));
     return geometry;
 }
 
 void ModelDrawData::loadMaterialTextures(aiMaterial* aiMaterial, aiTextureType type) {
-    std::string textureName;
-    TextureType textureType = Texture::assimpToRegularTextureType(type);
+    const TextureType textureType = Texture::assimpToRegularTextureType(type);
     for (unsigned int i = 0; i < aiMaterial->GetTextureCount(type); i++) {
         aiString texturePath;
-        auto res = aiMaterial->GetTexture(type, i, &texturePath);
-        std::string fullTexturePath = this->directory + "/" + texturePath.C_Str();
+        const auto res = aiMaterial->GetTexture(type, i, &texturePath);
+        const std::string fullTexturePath = this->directory + "/" + texturePath.C_Str();
         if (res == AI_SUCCESS) {
             std::shared_ptr<Texture> texture = std::make_shared<Texture>(fullTexturePath, textureType);
             texture->setName(texture->getType().name + "0");
@@ -229,47 +197,6 @@ void ModelDrawData::loadMaterialTextures(aiMaterial* aiMaterial, aiTextureType t
             else if (textureType.name == "textureAmbientOcclusion") {
                 this->textureAmbientOcclusion = texture;
             }
-
         }
     }
-}
-
-void ModelDrawData::updateShaderTextures() {
-    this->shaderPhong->setBool("useTextureAlbedo", this->useTextureAlbedo);
-    this->shaderPhong->setInt(TEXTURE_ALBEDO.name, TEXTURE_ALBEDO.index);
-    this->shaderPhong->setBool("useTextureDiffuse", this->useTextureDiffuse);
-    this->shaderPhong->setInt(TEXTURE_DIFFUSE.name, TEXTURE_DIFFUSE.index);
-    this->shaderPhong->setBool("useTextureSpecular", this->useTextureSpecular);
-    this->shaderPhong->setInt(TEXTURE_SPECULAR.name, TEXTURE_SPECULAR.index);
-    this->shaderPhong->setBool("useTextureNormal", this->useTextureNormal);
-    this->shaderPhong->setInt(TEXTURE_NORMAL.name, TEXTURE_NORMAL.index);
-    this->shaderPhong->setBool("useTextureHeight", this->useTextureHeight);
-    this->shaderPhong->setInt(TEXTURE_HEIGHT.name, TEXTURE_HEIGHT.index);
-    this->shaderPhong->setBool("useTextureRoughness", this->useTextureRoughness);
-    this->shaderPhong->setInt(TEXTURE_ROUGHNESS.name, TEXTURE_ROUGHNESS.index);
-    this->shaderPhong->setBool("useTextureShininess", this->useTextureShininess);
-    this->shaderPhong->setInt(TEXTURE_SHININESS.name, TEXTURE_SHININESS.index);
-    this->shaderPhong->setBool("useTextureMetalness", this->useTextureMetalness);
-    this->shaderPhong->setInt(TEXTURE_METALNESS.name, TEXTURE_METALNESS.index);
-    this->shaderPhong->setBool("useTextureAmbientOcclusion", this->useTextureAmbientOcclusion);
-    this->shaderPhong->setInt(TEXTURE_AMBIENT_OCCLUSION.name, TEXTURE_AMBIENT_OCCLUSION.index);
-
-    this->shaderPBR->setBool("useTextureAlbedo", this->useTextureAlbedo);
-    this->shaderPBR->setInt(TEXTURE_ALBEDO.name, TEXTURE_ALBEDO.index);
-    this->shaderPBR->setBool("useTextureDiffuse", this->useTextureDiffuse);
-    this->shaderPBR->setInt(TEXTURE_DIFFUSE.name, TEXTURE_DIFFUSE.index);
-    this->shaderPBR->setBool("useTextureSpecular", this->useTextureSpecular);
-    this->shaderPBR->setInt(TEXTURE_SPECULAR.name, TEXTURE_SPECULAR.index);
-    this->shaderPBR->setBool("useTextureNormal", this->useTextureNormal);
-    this->shaderPBR->setInt(TEXTURE_NORMAL.name, TEXTURE_NORMAL.index);
-    this->shaderPBR->setBool("useTextureHeight", this->useTextureHeight);
-    this->shaderPBR->setInt(TEXTURE_HEIGHT.name, TEXTURE_HEIGHT.index);
-    this->shaderPBR->setBool("useTextureRoughness", this->useTextureRoughness);
-    this->shaderPBR->setInt(TEXTURE_ROUGHNESS.name, TEXTURE_ROUGHNESS.index);
-    this->shaderPBR->setBool("useTextureShininess", this->useTextureShininess);
-    this->shaderPBR->setInt(TEXTURE_SHININESS.name, TEXTURE_SHININESS.index);
-    this->shaderPBR->setBool("useTextureMetalness", this->useTextureMetalness);
-    this->shaderPBR->setInt(TEXTURE_METALNESS.name, TEXTURE_METALNESS.index);
-    this->shaderPBR->setBool("useTextureAmbientOcclusion", this->useTextureAmbientOcclusion);
-    this->shaderPBR->setInt(TEXTURE_AMBIENT_OCCLUSION.name, TEXTURE_AMBIENT_OCCLUSION.index);
 }

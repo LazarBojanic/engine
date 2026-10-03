@@ -10,8 +10,9 @@
 #include "CubeMap.hpp"
 #include "LightDrawData.hpp"
 #include "Skybox.hpp"
+#include <unordered_map>
 
-class ResourceManager{
+class ResourceManager {
 private:
 	ResourceManager();
 	~ResourceManager();
@@ -28,8 +29,51 @@ private:
 	std::vector<std::shared_ptr<Texture>> textureList;
 	std::vector<std::shared_ptr<CubeMap>> cubeMapList;
 	std::vector<std::shared_ptr<Skybox>> skyboxList;
-public:
 
+	std::unordered_map<std::string, std::shared_ptr<DrawData>> drawDataByGuid;
+	std::unordered_map<std::string, std::shared_ptr<ModelDrawData>> modelDrawDataByGuid;
+	std::unordered_map<std::string, std::shared_ptr<LightDrawData>> lightDrawDataByGuid;
+	std::unordered_map<std::string, std::shared_ptr<Mesh>> meshByGuid;
+	std::unordered_map<std::string, std::shared_ptr<Shader>> shaderByGuid;
+	std::unordered_map<std::string, std::shared_ptr<Light>> lightByGuid;
+	std::unordered_map<std::string, std::shared_ptr<Material>> materialByGuid;
+	std::unordered_map<std::string, std::shared_ptr<Texture>> textureByGuid;
+	std::unordered_map<std::string, std::shared_ptr<CubeMap>> cubeMapByGuid;
+	std::unordered_map<std::string, std::shared_ptr<Skybox>> skyboxByGuid;
+
+	template <typename T>
+	std::shared_ptr<T> addResource(std::shared_ptr<T> resource,
+		std::vector<std::shared_ptr<T>>& list,
+		std::unordered_map<std::string, std::shared_ptr<T>>& map) {
+		if (resource == nullptr) {
+			return nullptr;
+		}
+		const auto found = map.find(resource->getGUID());
+		if (found != map.end()) {
+			return found->second;
+		}
+		map.emplace(resource->getGUID(), resource);
+		list.push_back(std::move(resource));
+		return list.back();
+	}
+
+	template <typename T>
+	std::shared_ptr<T> getByGUID(const std::string& guid, const std::unordered_map<std::string, std::shared_ptr<T>>& map) {
+		const auto found = map.find(guid);
+		return found != map.end() ? found->second : nullptr;
+	}
+
+	template <typename T>
+	std::shared_ptr<T> getByName(const std::string& name, const std::vector<std::shared_ptr<T>>& list) {
+		for (const auto& resource : list) {
+			if (resource != nullptr && resource->getName() == name) {
+				return resource;
+			}
+		}
+		return nullptr;
+	}
+
+public:
 	static ResourceManager* getInstance();
 
 	std::filesystem::path getAssetPath(const std::string& relativePath);
@@ -46,28 +90,29 @@ public:
 	std::shared_ptr<Skybox> addSkybox(std::shared_ptr<Skybox> skybox);
 
 	std::shared_ptr<DrawData> addDrawData(const std::string& name, std::shared_ptr<Mesh> mesh,
-	std::shared_ptr<Material> material,
-	std::shared_ptr<Texture> textureAlbedo,
-	std::shared_ptr<Texture> textureDiffuse,
-	std::shared_ptr<Texture> textureSpecular,
-	std::shared_ptr<Texture> textureNormal,
-	std::shared_ptr<Texture> textureHeight,
-	std::shared_ptr<Texture> textureRoughness,
-	std::shared_ptr<Texture> textureShininess,
-	std::shared_ptr<Texture> textureMetalness,
-	std::shared_ptr<Texture> textureAmbientOcclusion,
-	std::shared_ptr<Shader> shaderPhong,
-	std::shared_ptr<Shader> shaderPBR,
-	bool useTextureAlbedo,
-	bool useTextureDiffuse,
-	bool useTextureSpecular,
-	bool useTextureNormal,
-	bool useTextureHeight,
-	bool useTextureRoughness,
-	bool useTextureShininess,
-	bool useTextureMetalness,
-	bool useTextureAmbientOcclusion,
-	SHADING_TYPE shadingType);
+		std::shared_ptr<Material> material,
+		std::shared_ptr<Texture> textureAlbedo,
+		std::shared_ptr<Texture> textureDiffuse,
+		std::shared_ptr<Texture> textureSpecular,
+		std::shared_ptr<Texture> textureNormal,
+		std::shared_ptr<Texture> textureHeight,
+		std::shared_ptr<Texture> textureRoughness,
+		std::shared_ptr<Texture> textureShininess,
+		std::shared_ptr<Texture> textureMetalness,
+		std::shared_ptr<Texture> textureAmbientOcclusion,
+		std::shared_ptr<Shader> shaderPhong,
+		std::shared_ptr<Shader> shaderPBR,
+		bool useTextureAlbedo,
+		bool useTextureDiffuse,
+		bool useTextureSpecular,
+		bool useTextureNormal,
+		bool useTextureHeight,
+		bool useTextureRoughness,
+		bool useTextureShininess,
+		bool useTextureMetalness,
+		bool useTextureAmbientOcclusion,
+		SHADING_TYPE shadingType);
+
 	std::shared_ptr<ModelDrawData> addModelDrawData(const std::string& name, const std::string& path, std::shared_ptr<Material> material, std::shared_ptr<Shader> shaderPhong, std::shared_ptr<Shader> shaderPBR, SHADING_TYPE shadingType);
 	std::shared_ptr<LightDrawData> addLightDrawData(const std::string& name, std::shared_ptr<Light> light, std::shared_ptr<Mesh> mesh, std::shared_ptr<Shader> shader);
 	std::shared_ptr<Mesh> addMesh(const std::string& name, std::shared_ptr<Geometry> singleGeometry);
@@ -99,7 +144,6 @@ public:
 	std::shared_ptr<Texture> getTextureByName(const std::string& name);
 	std::shared_ptr<CubeMap> getCubeMapByName(const std::string& name);
 	std::shared_ptr<Skybox> getSkyboxByName(const std::string& name);
-	
 
 	void clear(bool reinitialize);
 };

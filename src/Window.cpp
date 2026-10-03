@@ -9,7 +9,11 @@ void Window::initGlfw() {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+#ifdef ENGINE_DEBUG_GL
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+#else
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_FALSE);
+#endif
     glfwWindowHint(GLFW_RESIZABLE, this->resizable);
 }
 
@@ -30,8 +34,10 @@ void Window::initGlfwWindow() {
     glfwMakeContextCurrent(this->glfwWindow);
     //glfwSetWindowUserPointer(this->glfwWindow, this);
     this->initGlad();
+#ifdef ENGINE_DEBUG_GL
     glEnable(GL_DEBUG_OUTPUT);
     glDebugMessageCallback(debugCallback, 0);
+#endif
     glfwSetKeyCallback(this->glfwWindow, key_callback);
     glfwSetFramebufferSizeCallback(this->glfwWindow, framebuffer_size_callback);
     glfwSetCursorPosCallback(this->glfwWindow, mouse_callback);
@@ -43,8 +49,9 @@ void Window::initGlfwWindow() {
     glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
 
     glEnable(GL_DEPTH_TEST);
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glEnable(GL_CULL_FACE);
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
 }
 
 Window::Window() {

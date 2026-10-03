@@ -16,6 +16,7 @@
 #include "Window.hpp"
 #include "Application.hpp"
 #include "miniaudio/miniaudio.h"
+#include <array>
 #include <filesystem>
 
 class Game {
@@ -23,14 +24,13 @@ private:
     std::string workingDirectory;
     static Game* instance;
     std::shared_ptr<ma_engine> soundEngine;
-    bool* keys;
-    int keysSize;
+    std::array<bool, 1024> keys{};
     float width;
     float height;
     float centerX;
     float centerY;
     std::shared_ptr<Camera> camera;
-    float t;
+    float t = 0.0f;
     float orbitAngle = 0.0f;
     glm::vec3 orbitCenter = glm::vec3(50.0f, 50.0f, 50.0f);
     glm::vec3 backpackInitialPosition = glm::vec3(30.0f, 30.0f, 30.0f);
@@ -46,12 +46,12 @@ public:
     void render();
     void clear();
     void orbit(float dt);
-    std::shared_ptr<Camera> getCamera() {
+    const std::shared_ptr<Camera>& getCamera() const {
         return this->camera;
     }
     void initKeys();
     bool* getKeys() {
-        return this->keys;
+        return this->keys.data();
     }
     void generateCubeGrid(unsigned int gridSizeX, unsigned int gridSizeY, unsigned int gridSizeZ, float cubeSizeX, float cubeSizeY, float cubeSizeZ, float spacing);
 };

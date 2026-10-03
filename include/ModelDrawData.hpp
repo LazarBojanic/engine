@@ -62,37 +62,36 @@ public:
 	void processAssimpModelNode(aiNode* node, const aiScene* scene);
 	std::shared_ptr<Geometry> processAssimpMesh(aiMesh* mesh, const aiScene* scene);
 	void loadMaterialTextures(aiMaterial* aiMaterial, aiTextureType type);
-	void updateShaderTextures();
 
-	const std::string& getGUID() {
+	const std::string& getGUID() const {
 		return this->guid;
 	}
 
-	const std::string& getName() {
+	const std::string& getName() const {
 		return this->name;
 	}
 
-	const std::string& getDirectory() {
+	const std::string& getDirectory() const {
 		return this->directory;
 	}
 
-	const std::string& getPath() {
+	const std::string& getPath() const {
 		return this->path;
 	}
 
-	bool getGammaCorrection() {
+	bool getGammaCorrection() const {
 		return this->gammaCorrection;
 	}
 
-	std::shared_ptr<Mesh> getMesh() {
+	const std::shared_ptr<Mesh>& getMesh() const {
 		return this->mesh;
 	}
 
-	std::shared_ptr<Material> getMaterial() {
+	const std::shared_ptr<Material>& getMaterial() const {
 		return this->material;
 	}
 
-	std::shared_ptr<Texture> getTextureAlbedo() {
+	const std::shared_ptr<Texture>& getTextureAlbedo() const {
 		return this->textureAlbedo;
 	}
 
@@ -100,7 +99,7 @@ public:
 		this->textureAlbedo = textureAlbedo;
 	}
 
-	std::shared_ptr<Texture> getTextureDiffuse() {
+	const std::shared_ptr<Texture>& getTextureDiffuse() const {
 		return this->textureDiffuse;
 	}
 
@@ -108,7 +107,7 @@ public:
 		this->textureDiffuse = textureDiffuse;
 	}
 
-	std::shared_ptr<Texture> getTextureSpecular() {
+	const std::shared_ptr<Texture>& getTextureSpecular() const {
 		return this->textureSpecular;
 	}
 
@@ -116,7 +115,7 @@ public:
 		this->textureSpecular = textureSpecular;
 	}
 
-	std::shared_ptr<Texture> getTextureNormal() {
+	const std::shared_ptr<Texture>& getTextureNormal() const {
 		return this->textureNormal;
 	}
 
@@ -124,7 +123,7 @@ public:
 		this->textureNormal = textureNormal;
 	}
 
-	std::shared_ptr<Texture> getTextureHeight() {
+	const std::shared_ptr<Texture>& getTextureHeight() const {
 		return this->textureHeight;
 	}
 
@@ -132,7 +131,7 @@ public:
 		this->textureHeight = textureHeight;
 	}
 
-	std::shared_ptr<Texture> getTextureRoughness() {
+	const std::shared_ptr<Texture>& getTextureRoughness() const {
 		return this->textureRoughness;
 	}
 
@@ -140,7 +139,7 @@ public:
 		this->textureRoughness = textureRoughness;
 	}
 
-	std::shared_ptr<Texture> getTextureShininess() {
+	const std::shared_ptr<Texture>& getTextureShininess() const {
 		return this->textureShininess;
 	}
 
@@ -148,7 +147,7 @@ public:
 		this->textureShininess = textureShininess;
 	}
 
-	std::shared_ptr<Texture> getTextureMetalness() {
+	const std::shared_ptr<Texture>& getTextureMetalness() const {
 		return this->textureMetalness;
 	}
 
@@ -156,7 +155,7 @@ public:
 		this->textureMetalness = textureMetalness;
 	}
 
-	std::shared_ptr<Texture> getTextureAmbientOcclusion() {
+	const std::shared_ptr<Texture>& getTextureAmbientOcclusion() const {
 		return this->textureAmbientOcclusion;
 	}
 
@@ -164,7 +163,7 @@ public:
 		this->textureAmbientOcclusion = textureAmbientOcclusion;
 	}
 
-	std::shared_ptr<Shader> getShaderPhong() {
+	const std::shared_ptr<Shader>& getShaderPhong() const {
 		return this->shaderPhong;
 	}
 
@@ -172,15 +171,15 @@ public:
 		this->shaderPhong = shaderPhong;
 	}
 
-	std::shared_ptr<Shader> getShaderPbr() {
+	const std::shared_ptr<Shader>& getShaderPbr() const {
 		return this->shaderPBR;
 	}
 
 	void setShaderPbr(const std::shared_ptr<Shader>& shaderPbr) {
-		shaderPBR = shaderPbr;
+		this->shaderPBR = shaderPbr;
 	}
 
-	bool getUseTextureAlbedo() {
+	bool getUseTextureAlbedo() const {
 		return this->useTextureAlbedo;
 	}
 
@@ -188,7 +187,7 @@ public:
 		this->useTextureAlbedo = useTextureAlbedo;
 	}
 
-	bool getUseTextureDiffuse() {
+	bool getUseTextureDiffuse() const {
 		return this->useTextureDiffuse;
 	}
 
@@ -196,7 +195,7 @@ public:
 		this->useTextureDiffuse = useTextureDiffuse;
 	}
 
-	bool getUseTextureSpecular() {
+	bool getUseTextureSpecular() const {
 		return this->useTextureSpecular;
 	}
 
@@ -204,7 +203,7 @@ public:
 		this->useTextureSpecular = useTextureSpecular;
 	}
 
-	bool getUseTextureNormal() {
+	bool getUseTextureNormal() const {
 		return this->useTextureNormal;
 	}
 
@@ -212,7 +211,7 @@ public:
 		this->useTextureNormal = useTextureNormal;
 	}
 
-	bool getUseTextureHeight() {
+	bool getUseTextureHeight() const {
 		return this->useTextureHeight;
 	}
 
@@ -220,7 +219,7 @@ public:
 		this->useTextureHeight = useTextureHeight;
 	}
 
-	bool getUseTextureRoughness() {
+	bool getUseTextureRoughness() const {
 		return this->useTextureRoughness;
 	}
 
@@ -228,7 +227,7 @@ public:
 		this->useTextureRoughness = useTextureRoughness;
 	}
 
-	bool getUseTextureShininess() {
+	bool getUseTextureShininess() const {
 		return this->useTextureShininess;
 	}
 
@@ -236,7 +235,7 @@ public:
 		this->useTextureShininess = useTextureShininess;
 	}
 
-	bool getUseTextureMetalness() {
+	bool getUseTextureMetalness() const {
 		return this->useTextureMetalness;
 	}
 
@@ -244,7 +243,7 @@ public:
 		this->useTextureMetalness = useTextureMetalness;
 	}
 
-	bool getUseTextureAmbientOcclusion() {
+	bool getUseTextureAmbientOcclusion() const {
 		return this->useTextureAmbientOcclusion;
 	}
 
@@ -252,7 +251,7 @@ public:
 		this->useTextureAmbientOcclusion = useTextureAmbientOcclusion;
 	}
 
-	SHADING_TYPE getShadingType() {
+	SHADING_TYPE getShadingType() const {
 		return this->shadingType;
 	}
 

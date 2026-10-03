@@ -2,10 +2,23 @@ cmake_minimum_required(VERSION 3.30)
 project(engine)
 
 # -------------------------------
+# Build configuration
+# -------------------------------
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE Release CACHE STRING "Build type (Debug/Release/RelWithDebInfo/MinSizeRel)" FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS Debug Release RelWithDebInfo MinSizeRel)
+endif()
+
+# -------------------------------
 # C++ standard
 # -------------------------------
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+# -------------------------------
+# Options
+# -------------------------------
+option(ENGINE_DEBUG_GL "Enable the OpenGL debug context and debug message callback" OFF)
 
 # -------------------------------
 # Output directories
@@ -65,6 +78,10 @@ list(APPEND SOURCES
 # Create executable
 # -------------------------------
 add_executable(engine ${SOURCES})
+
+if(ENGINE_DEBUG_GL)
+    target_compile_definitions(engine PRIVATE ENGINE_DEBUG_GL)
+endif()
 
 # -------------------------------
 # Collect vendor static libraries

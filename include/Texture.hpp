@@ -20,6 +20,8 @@ private:
     unsigned int filterMin;
     unsigned int filterMax;
     GLenum format;
+
+    void init(const std::string& name, const std::filesystem::path& path, TextureType type);
 public:
 
     Texture();

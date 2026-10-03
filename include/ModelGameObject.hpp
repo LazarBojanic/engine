@@ -1,7 +1,7 @@
 #pragma once
 
-#include "LightGameObject.hpp"
 #include "Util.hpp"
+#include "Transform.hpp"
 #include "ModelDrawData.hpp"
 
 class ModelGameObject {
@@ -10,149 +10,81 @@ private:
 	std::string name;
 	std::string tag;
 	std::shared_ptr<ModelDrawData> modelDrawData;
-	float positionX, positionY, positionZ;
-	float sizeX, sizeY, sizeZ;
-	float scaleX, scaleY, scaleZ;
-	float scaledSizeX, scaledSizeY, scaledSizeZ;
-	float rotationX, rotationY, rotationZ;
-	float speedX, speedY, speedZ;
+	Transform transform;
+	glm::vec3 speed{ 0.0f };
 	bool isHit;
+
 public:
 	ModelGameObject();
-	ModelGameObject(const std::string& name, const std::string& tag, std::shared_ptr<ModelDrawData> modelDrawData, float positionX, float positionY, float positionZ, float sizeX, float sizeY, float sizeZ, float scaleX, float scaleY, float scaleZ, float rotationX, float rotationY, float rotationZ, float speedX, float speedY, float speedZ, bool isHit);
+	ModelGameObject(const std::string& name, const std::string& tag, std::shared_ptr<ModelDrawData> modelDrawData,
+		float positionX, float positionY, float positionZ,
+		float sizeX, float sizeY, float sizeZ,
+		float scaleX, float scaleY, float scaleZ,
+		float rotationX, float rotationY, float rotationZ,
+		float speedX, float speedY, float speedZ,
+		bool isHit);
 	~ModelGameObject();
-	void updateShaderUseTexture() ;
-	void updateShaderTime(float t);
-	void updateShaderMaterial();
-	void updateShaderLight(std::shared_ptr<LightGameObject> lightGameObject);
-	void updateShaderViewData(glm::mat4 modelMatrix, glm::mat4 inverseModelMatrix, glm::mat4 viewMatrix,  glm::mat4 projectionMatrix, glm::vec3 viewPos);
-	std::string getGUID() {
+
+	const std::string& getGUID() const {
 		return this->guid;
 	}
-	std::string getName() {
+
+	const std::string& getName() const {
 		return this->name;
 	}
-	std::string getTag() {
+
+	const std::string& getTag() const {
 		return this->tag;
 	}
-	std::shared_ptr<ModelDrawData> getModelDrawData() {
+
+	const std::shared_ptr<ModelDrawData>& getModelDrawData() const {
 		return this->modelDrawData;
 	}
-	float getPositionX() {
-		return this->positionX;
+
+	Transform& getTransform() {
+		return this->transform;
 	}
-	float getPositionY() {
-		return this->positionY;
+
+	const Transform& getTransform() const {
+		return this->transform;
 	}
-	float getPositionZ() {
-		return this->positionZ;
+
+	float getSpeedX() const {
+		return this->speed.x;
 	}
-	float getSizeX() {
-		return this->sizeX;
+
+	float getSpeedY() const {
+		return this->speed.y;
 	}
-	float getSizeY() {
-		return this->sizeY;
+
+	float getSpeedZ() const {
+		return this->speed.z;
 	}
-	float getSizeZ() {
-		return this->sizeZ;
-	}
-	float getScaleX() {
-		return this->scaleX;
-	}
-	float getScaleY() {
-		return this->scaleY;
-	}
-	float getScaleZ() {
-		return this->scaleZ;
-	}
-	float getScaledSizeX() {
-		return this->scaledSizeX;
-	}
-	float getScaledSizeY() {
-		return this->scaledSizeY;
-	}
-	float getScaledSizeZ() {
-		return this->scaledSizeZ;
-	}
-	float getRotationX() {
-		return this->rotationX;
-	}
-	float getRotationY() {
-		return this->rotationY;
-	}
-	float getRotationZ() {
-		return this->rotationZ;
-	}
-	float getSpeedX() {
-		return this->speedX;
-	}
-	float getSpeedY() {
-		return this->speedY;
-	}
-	float getSpeedZ() {
-		return this->speedZ;
-	}
-	bool getIsHit() {
+
+	bool getIsHit() const {
 		return this->isHit;
 	}
 
-	void setName(std::string name) {
+	void setName(const std::string& name) {
 		this->name = name;
 	}
-	void setTag(std::string tag) {
+
+	void setTag(const std::string& tag) {
 		this->tag = tag;
 	}
-	void setPositionX(float positionX) {
-		this->positionX = positionX;
-	}
-	void setPositionY(float positionY) {
-		this->positionY = positionY;
-	}
-	void setPositionZ(float positionZ) {
-		this->positionZ = positionZ;
-	}
-	void setSizeX(float sizeX) {
-		this->sizeX = sizeX;
-		this->scaledSizeX = this->sizeX * this->scaleX;
-	}
-	void setSizeY(float sizeY) {
-		this->sizeY = sizeY;
-		this->scaledSizeY = this->sizeY * this->scaleY;
-	}
-	void setSizeZ(float sizeZ) {
-		this->sizeZ = sizeZ;
-		this->scaledSizeZ = this->sizeZ * this->scaleZ;
-	}
-	void setScaleX(float scaleX) {
-		this->scaleX = scaleX;
-		this->scaledSizeX = this->sizeX * this->scaleX;
-	}
-	void setScaleY(float scaleY) {
-		this->scaleY = scaleY;
-		this->scaledSizeY = this->sizeY * this->scaleY;
-	}
-	void setScaleZ(float scaleZ) {
-		this->scaleZ = scaleZ;
-		this->scaledSizeZ = this->sizeZ * this->scaleZ;
-	}
-	void setRotationX(float rotationX) {
-		this->rotationX = rotationX;
-	}
-	void setRotationY(float rotationY) {
-		this->rotationY = rotationY;
-	}
-	void setRotationZ(float rotationZ) {
-		this->rotationZ = rotationZ;
-	}
+
 	void setSpeedX(float speedX) {
-		this->speedX = speedX;
+		this->speed.x = speedX;
 	}
-	void setSpeedY(float speedY){
-		this->speedY = speedY;
+
+	void setSpeedY(float speedY) {
+		this->speed.y = speedY;
 	}
+
 	void setSpeedZ(float speedZ) {
-		this->speedZ = speedZ;
+		this->speed.z = speedZ;
 	}
+
 	void setIsHit(bool isHit) {
 		this->isHit = isHit;
 	}

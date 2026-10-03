@@ -1,36 +1,27 @@
 #include "Geometry.hpp"
 
+#include <cstddef>
+#include <limits>
+
 Geometry::Geometry() {
     this->isIndexed = true;
-    this->vertexList = std::vector<GeometryVertex>();
-    this->triangleList = std::vector<glm::uvec3>();
-    this->rawVertexList = std::vector<float>();
-    this->rawIndexList = std::vector<unsigned int>();
 }
 
 Geometry::Geometry(bool indexed) {
     this->isIndexed = indexed;
-    this->vertexList = std::vector<GeometryVertex>();
-    this->triangleList = std::vector<glm::uvec3>();
-    this->rawVertexList = std::vector<float>();
-    this->rawIndexList = std::vector<unsigned int>();
 }
 
 Geometry::Geometry(bool indexed, std::vector<GeometryVertex> vertexList, std::vector<glm::uvec3> triangleList) {
     this->isIndexed = indexed;
-    this->vertexList = vertexList;
-    this->triangleList = triangleList;
-    this->rawVertexList = std::vector<float>();
-    this->rawIndexList = std::vector<unsigned int>();
+    this->vertexList = std::move(vertexList);
+    this->triangleList = std::move(triangleList);
     this->finalize();
 }
 
 Geometry::Geometry(bool indexed, std::vector<GeometryVertex> vertexList, std::vector<unsigned int> indexList) {
     this->isIndexed = indexed;
-    this->vertexList = vertexList;
-    this->triangleList = std::vector<glm::uvec3>();
-    this->rawVertexList = std::vector<float>();
-    this->rawIndexList = indexList;
+    this->vertexList = std::move(vertexList);
+    this->rawIndexList = std::move(indexList);
     this->finalize();
 }
 
@@ -38,41 +29,27 @@ Geometry::~Geometry() {
 }
 
 void Geometry::calculateTangentsAndBitangents() {
-// Reset tangents and bitangents to zero
-    for (auto& vertex : vertexList) {
+    for (auto& vertex : this->vertexList) {
         vertex.tangent = glm::vec3(0.0f);
         vertex.bitangent = glm::vec3(0.0f);
     }
 
-    // Use triangle list if indexed
-    if (isIndexed && !triangleList.empty()) {
-        for (const auto& tri : triangleList) {
-            GeometryVertex& v0 = vertexList[tri.x];
-            GeometryVertex& v1 = vertexList[tri.y];
-            GeometryVertex& v2 = vertexList[tri.z];
+    if (this->isIndexed && !this->triangleList.empty()) {
+        for (const auto& triangle : this->triangleList) {
+            GeometryVertex& v0 = this->vertexList[triangle.x];
+            GeometryVertex& v1 = this->vertexList[triangle.y];
+            GeometryVertex& v2 = this->vertexList[triangle.z];
 
-            // Positions and UVs
-            glm::vec3 pos0 = v0.position;
-            glm::vec3 pos1 = v1.position;
-            glm::vec3 pos2 = v2.position;
+            const glm::vec3 deltaPos1 = v1.position - v0.position;
+            const glm::vec3 deltaPos2 = v2.position - v0.position;
+            const glm::vec2 deltaUV1 = v1.uv - v0.uv;
+            const glm::vec2 deltaUV2 = v2.uv - v0.uv;
 
-            glm::vec2 uv0 = v0.uv;
-            glm::vec2 uv1 = v1.uv;
-            glm::vec2 uv2 = v2.uv;
+            const float determinant = deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x;
+            const float r = determinant != 0.0f ? 1.0f / determinant : 0.0f;
+            const glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
+            const glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r;
 
-            // Edges of the triangle (position delta)
-            glm::vec3 deltaPos1 = pos1 - pos0;
-            glm::vec3 deltaPos2 = pos2 - pos0;
-
-            // UV delta
-            glm::vec2 deltaUV1 = uv1 - uv0;
-            glm::vec2 deltaUV2 = uv2 - uv0;
-
-            float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
-            glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
-            glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r;
-
-            // Accumulate per-vertex
             v0.tangent += tangent;
             v1.tangent += tangent;
             v2.tangent += tangent;
@@ -82,30 +59,21 @@ void Geometry::calculateTangentsAndBitangents() {
             v2.bitangent += bitangent;
         }
     }
-    // Fallback for non-indexed geometry (triangle soup)
     else {
-        for (size_t i = 0; i + 2 < vertexList.size(); i += 3) {
-            GeometryVertex& v0 = vertexList[i + 0];
-            GeometryVertex& v1 = vertexList[i + 1];
-            GeometryVertex& v2 = vertexList[i + 2];
+        for (std::size_t i = 0; i + 2 < this->vertexList.size(); i += 3) {
+            GeometryVertex& v0 = this->vertexList[i + 0];
+            GeometryVertex& v1 = this->vertexList[i + 1];
+            GeometryVertex& v2 = this->vertexList[i + 2];
 
-            glm::vec3 pos0 = v0.position;
-            glm::vec3 pos1 = v1.position;
-            glm::vec3 pos2 = v2.position;
+            const glm::vec3 deltaPos1 = v1.position - v0.position;
+            const glm::vec3 deltaPos2 = v2.position - v0.position;
+            const glm::vec2 deltaUV1 = v1.uv - v0.uv;
+            const glm::vec2 deltaUV2 = v2.uv - v0.uv;
 
-            glm::vec2 uv0 = v0.uv;
-            glm::vec2 uv1 = v1.uv;
-            glm::vec2 uv2 = v2.uv;
-
-            glm::vec3 deltaPos1 = pos1 - pos0;
-            glm::vec3 deltaPos2 = pos2 - pos0;
-
-            glm::vec2 deltaUV1 = uv1 - uv0;
-            glm::vec2 deltaUV2 = uv2 - uv0;
-
-            float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
-            glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
-            glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r;
+            const float determinant = deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x;
+            const float r = determinant != 0.0f ? 1.0f / determinant : 0.0f;
+            const glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y) * r;
+            const glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x) * r;
 
             v0.tangent += tangent;
             v1.tangent += tangent;
@@ -117,15 +85,23 @@ void Geometry::calculateTangentsAndBitangents() {
         }
     }
 
-    // Normalize results
-    for (auto& vertex : vertexList) {
-        vertex.tangent = glm::normalize(vertex.tangent);
-        vertex.bitangent = glm::normalize(vertex.bitangent);
+    for (auto& vertex : this->vertexList) {
+        const float tangentLength = glm::length(vertex.tangent);
+        if (tangentLength > 0.0f) {
+            vertex.tangent /= tangentLength;
+        }
+        const float bitangentLength = glm::length(vertex.bitangent);
+        if (bitangentLength > 0.0f) {
+            vertex.bitangent /= bitangentLength;
+        }
     }
 }
 
 void Geometry::calculateRawData() {
-    for (auto vertex : this->vertexList) {
+    this->rawVertexList.clear();
+    this->rawVertexList.reserve(this->vertexList.size() * 25);
+
+    for (const auto& vertex : this->vertexList) {
         this->rawVertexList.push_back(vertex.position.x);
         this->rawVertexList.push_back(vertex.position.y);
         this->rawVertexList.push_back(vertex.position.z);
@@ -160,36 +136,77 @@ void Geometry::calculateRawData() {
         this->rawVertexList.push_back(vertex.weights.w);
     }
 
-
-    if (this->isIndexed) {
-        if (!this->triangleList.empty()) {
-            for (auto triangle : this->triangleList) {
-                this->rawIndexList.push_back(triangle.x);
-                this->rawIndexList.push_back(triangle.y);
-                this->rawIndexList.push_back(triangle.z);
-            }
+    if (this->isIndexed && !this->triangleList.empty()) {
+        this->rawIndexList.clear();
+        this->rawIndexList.reserve(this->triangleList.size() * 3);
+        for (const auto& triangle : this->triangleList) {
+            this->rawIndexList.push_back(triangle.x);
+            this->rawIndexList.push_back(triangle.y);
+            this->rawIndexList.push_back(triangle.z);
         }
-        // Else: rawIndexList already filled from constructor
     }
 }
 
+void Geometry::calculateLocalAABB() {
+    if (this->vertexList.empty()) {
+        this->localAABBMin = glm::vec3(0.0f);
+        this->localAABBMax = glm::vec3(0.0f);
+        return;
+    }
+
+    constexpr float maxFloat = std::numeric_limits<float>::max();
+    glm::vec3 min(maxFloat);
+    glm::vec3 max(-maxFloat);
+    for (const auto& vertex : this->vertexList) {
+        min = glm::min(min, vertex.position);
+        max = glm::max(max, vertex.position);
+    }
+    this->localAABBMin = min;
+    this->localAABBMax = max;
+}
+
 void Geometry::generateBuffers() {
-    if (this->getStructuredVertexDataCount() <= 0) return;
+    if (this->getStructuredVertexDataCount() == 0) {
+        return;
+    }
+
     this->vertexArray = std::make_shared<VertexArray>();
     this->vertexArray->bind();
+
     this->vertexBuffer = std::make_shared<VertexBuffer>();
     this->vertexBuffer->uploadData(this->getStructuredVertexData(), this->getStructuredVertexDataCount(), this->getStructuredVertexDataSize());
-    this->vertexBuffer->bind();
+
     if (this->isIndexed) {
         this->indexBuffer = std::make_shared<IndexBuffer>();
         this->indexBuffer->uploadData(this->getRawIndexData(), this->getRawIndexDataCount(), this->getRawIndexDataSize());
-        this->indexBuffer->bind();
     }
+
+    this->instanceBuffer = std::make_shared<InstanceBuffer>();
+    this->instanceBuffer->bind();
+    const InstanceData identity;
+    this->instanceBuffer->upload(&identity, sizeof(InstanceData));
+
+    for (GLuint i = 0; i < 4; i++) {
+        const GLuint location = Util::LAYOUT_LOCATION_INSTANCE_MODEL + i;
+        glEnableVertexAttribArray(location);
+        glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, sizeof(InstanceData),
+            reinterpret_cast<const void*>(offsetof(InstanceData, model) + sizeof(glm::vec4) * i));
+        glVertexAttribDivisor(location, 1);
+    }
+    for (GLuint i = 0; i < 4; i++) {
+        const GLuint location = Util::LAYOUT_LOCATION_INSTANCE_INVERSE + i;
+        glEnableVertexAttribArray(location);
+        glVertexAttribPointer(location, 4, GL_FLOAT, GL_FALSE, sizeof(InstanceData),
+            reinterpret_cast<const void*>(offsetof(InstanceData, inverseModel) + sizeof(glm::vec4) * i));
+        glVertexAttribDivisor(location, 1);
+    }
+
     this->vertexArray->unbind();
 }
 
 void Geometry::finalize() {
     this->calculateTangentsAndBitangents();
     this->calculateRawData();
+    this->calculateLocalAABB();
     this->generateBuffers();
 }

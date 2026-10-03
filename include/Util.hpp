@@ -5,8 +5,10 @@
 #include <string>
 #include <vector>
 #include <filesystem>
+#include <memory>
 #include <random>
 #include <thread>
+#include <utility>
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -27,6 +29,8 @@ public:
 	static constexpr GLuint LAYOUT_LOCATION_BITANGENT = 5;
 	static constexpr GLuint LAYOUT_LOCATION_BONE_IDS = 6;
 	static constexpr GLuint LAYOUT_LOCATION_WEIGHTS = 7;
+	static constexpr GLuint LAYOUT_LOCATION_INSTANCE_MODEL = 8;
+	static constexpr GLuint LAYOUT_LOCATION_INSTANCE_INVERSE = 12;
 
 	static constexpr GLint DIMENSIONS_POSITION = 3;
 	static constexpr GLint DIMENSIONS_COLOR = 4;

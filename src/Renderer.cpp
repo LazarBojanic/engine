@@ -1,10 +1,16 @@
 #include "Renderer.hpp"
 
-#include "Application.hpp"
-#include "LightGameObject.hpp"
-#include "VertexArray.hpp"
-#include "VertexBuffer.hpp"
+#include "GameObject.hpp"
+#include "GameObjectManager.hpp"
+#include "InstanceBuffer.hpp"
+#include "Mesh.hpp"
+#include "ModelGameObject.hpp"
+#include "ResourceManager.hpp"
+#include "Skybox.hpp"
+#include "TextureType.hpp"
 
+#include <unordered_map>
+#include <vector>
 
 Renderer* Renderer::instance;
 
@@ -12,7 +18,6 @@ Renderer::Renderer() {
 }
 
 Renderer::~Renderer() {
-
 }
 
 Renderer* Renderer::getInstance() {
@@ -22,263 +27,384 @@ Renderer* Renderer::getInstance() {
     return instance;
 }
 
-void Renderer::draw(std::shared_ptr<GameObject> gameObject, std::shared_ptr<Camera> camera, bool scaled) {
-    //glEnable(GL_CULL_FACE);
-    glm::mat4 modelMatrix = glm::mat4(1.0f);
-    modelMatrix = glm::translate(modelMatrix, glm::vec3(gameObject->getPositionX(), gameObject->getPositionY(), gameObject->getPositionZ()));
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(gameObject->getRotationX()), glm::vec3(1.0f, 0.0f, 0.0f));
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(gameObject->getRotationY()), glm::vec3(0.0f, 1.0f, 0.0f));
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(gameObject->getRotationZ()), glm::vec3(0.0f, 0.0f, 1.0f));
-    if (!scaled) {
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(gameObject->getSizeX(), gameObject->getSizeY(), gameObject->getSizeZ()));
-    }
-    else {
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(gameObject->getScaledSizeX(), gameObject->getScaledSizeY(), gameObject->getScaledSizeZ()));
-    }
-    glm::mat4 inverseModelMatrix = glm::transpose(glm::inverse(modelMatrix));
-    glm::mat4 viewMatrix = camera->getView();
-    glm::mat4 projectionMatrix = camera->getProjection();
-    gameObject->updateShaderViewData(modelMatrix, inverseModelMatrix, viewMatrix, projectionMatrix, camera->getPosition());
-    gameObject->updateShaderMaterial();
-    gameObject->updateShaderUseTexture();
-    for (auto lightGameObject : GameObjectManager::getInstance()->getLightGameObjectList()) {
-        gameObject->updateShaderLight(lightGameObject);
-    }
-    gameObject->updateShaderTime(glfwGetTime());
-    if (gameObject->getDrawData()->getShaderPhong() != nullptr && gameObject->getDrawData()->getShadingType() == SHADING_TYPE::PHONG) {
-        gameObject->getDrawData()->getShaderPhong()->bind();
-    }
-    else if (gameObject->getDrawData()->getShaderPbr() != nullptr && gameObject->getDrawData()->getShadingType() == SHADING_TYPE::PBR) {
-        gameObject->getDrawData()->getShaderPbr()->bind();
-    }
+namespace {
 
-    if (gameObject->getDrawData()->getTextureAlbedo() != nullptr && gameObject->getDrawData()->getUseTextureAlbedo()) {
-            gameObject->getDrawData()->getTextureAlbedo()->bind(gameObject->getDrawData()->getTextureAlbedo()->getType().index);
+template <typename T>
+const std::shared_ptr<Shader>& getActiveShader(const T& data) {
+    if (data.getShadingType() == SHADING_TYPE::PBR) {
+        return data.getShaderPbr();
     }
-    if (gameObject->getDrawData()->getTextureDiffuse() != nullptr && gameObject->getDrawData()->getUseTextureDiffuse()) {
-        gameObject->getDrawData()->getTextureDiffuse()->bind(gameObject->getDrawData()->getTextureDiffuse()->getType().index);
+    return data.getShaderPhong();
+}
+
+void setSharedUniforms(Shader& shader, const glm::mat4& view, const glm::mat4& projection, const glm::vec3& viewPos, float time) {
+    shader.setMatrix4f("uView", view);
+    shader.setMatrix4f("uProjection", projection);
+    shader.setVector3f("uViewPos", viewPos);
+    shader.setFloat("uTime", time);
+}
+
+template <typename T>
+void setMaterialUniforms(Shader& shader, const T& data) {
+    const std::shared_ptr<Material>& material = data.getMaterial();
+    if (material == nullptr) {
+        return;
     }
-    if (gameObject->getDrawData()->getTextureSpecular() != nullptr && gameObject->getDrawData()->getUseTextureSpecular()) {
-        gameObject->getDrawData()->getTextureSpecular()->bind(gameObject->getDrawData()->getTextureSpecular()->getType().index);
+    shader.setVector4f("uMaterial.albedo", material->albedo);
+    shader.setVector3f("uMaterial.ambient", material->ambient);
+    shader.setVector3f("uMaterial.diffuse", material->diffuse);
+    shader.setVector3f("uMaterial.specular", material->specular);
+    shader.setFloat("uMaterial.shininess", material->shininess);
+}
+
+template <typename T>
+void setUseTextureUniforms(Shader& shader, const T& data) {
+    shader.setBool("useTextureAlbedo", data.getUseTextureAlbedo());
+    shader.setBool("useTextureDiffuse", data.getUseTextureDiffuse());
+    shader.setBool("useTextureSpecular", data.getUseTextureSpecular());
+    shader.setBool("useTextureNormal", data.getUseTextureNormal());
+    shader.setBool("useTextureHeight", data.getUseTextureHeight());
+    shader.setBool("useTextureRoughness", data.getUseTextureRoughness());
+    shader.setBool("useTextureShininess", data.getUseTextureShininess());
+    shader.setBool("useTextureMetalness", data.getUseTextureMetalness());
+    shader.setBool("useTextureAmbientOcclusion", data.getUseTextureAmbientOcclusion());
+}
+
+template <typename T>
+void bindTextures(const T& data) {
+    if (data.getTextureAlbedo() != nullptr && data.getUseTextureAlbedo()) {
+        data.getTextureAlbedo()->bind(TEXTURE_ALBEDO.index);
     }
-    if (gameObject->getDrawData()->getTextureNormal() != nullptr && gameObject->getDrawData()->getUseTextureNormal()) {
-        gameObject->getDrawData()->getTextureNormal()->bind(gameObject->getDrawData()->getTextureNormal()->getType().index);
+    if (data.getTextureDiffuse() != nullptr && data.getUseTextureDiffuse()) {
+        data.getTextureDiffuse()->bind(TEXTURE_DIFFUSE.index);
     }
-    if (gameObject->getDrawData()->getTextureHeight() != nullptr && gameObject->getDrawData()->getUseTextureHeight()) {
-        gameObject->getDrawData()->getTextureHeight()->bind(gameObject->getDrawData()->getTextureHeight()->getType().index);
+    if (data.getTextureSpecular() != nullptr && data.getUseTextureSpecular()) {
+        data.getTextureSpecular()->bind(TEXTURE_SPECULAR.index);
     }
-    if (gameObject->getDrawData()->getTextureRoughness() != nullptr && gameObject->getDrawData()->getUseTextureRoughness()) {
-        gameObject->getDrawData()->getTextureRoughness()->bind(gameObject->getDrawData()->getTextureRoughness()->getType().index);
+    if (data.getTextureNormal() != nullptr && data.getUseTextureNormal()) {
+        data.getTextureNormal()->bind(TEXTURE_NORMAL.index);
     }
-    if (gameObject->getDrawData()->getTextureShininess() != nullptr && gameObject->getDrawData()->getUseTextureShininess()) {
-        gameObject->getDrawData()->getTextureShininess()->bind(gameObject->getDrawData()->getTextureShininess()->getType().index);
+    if (data.getTextureHeight() != nullptr && data.getUseTextureHeight()) {
+        data.getTextureHeight()->bind(TEXTURE_HEIGHT.index);
     }
-    if (gameObject->getDrawData()->getTextureMetalness() != nullptr && gameObject->getDrawData()->getUseTextureMetalness()) {
-        gameObject->getDrawData()->getTextureMetalness()->bind(gameObject->getDrawData()->getTextureMetalness()->getType().index);
+    if (data.getTextureRoughness() != nullptr && data.getUseTextureRoughness()) {
+        data.getTextureRoughness()->bind(TEXTURE_ROUGHNESS.index);
     }
-    if (gameObject->getDrawData()->getTextureAmbientOcclusion() != nullptr && gameObject->getDrawData()->getUseTextureAmbientOcclusion()) {
-        gameObject->getDrawData()->getTextureAmbientOcclusion()->bind(gameObject->getDrawData()->getTextureAmbientOcclusion()->getType().index);
+    if (data.getTextureShininess() != nullptr && data.getUseTextureShininess()) {
+        data.getTextureShininess()->bind(TEXTURE_SHININESS.index);
     }
-    
-    for (auto geometry : gameObject->getDrawData()->getMesh()->getGeometryList()) {
+    if (data.getTextureMetalness() != nullptr && data.getUseTextureMetalness()) {
+        data.getTextureMetalness()->bind(TEXTURE_METALNESS.index);
+    }
+    if (data.getTextureAmbientOcclusion() != nullptr && data.getUseTextureAmbientOcclusion()) {
+        data.getTextureAmbientOcclusion()->bind(TEXTURE_AMBIENT_OCCLUSION.index);
+    }
+}
+
+void setSamplerUniforms(Shader& shader) {
+    shader.setInt(TEXTURE_ALBEDO.name, TEXTURE_ALBEDO.index);
+    shader.setInt(TEXTURE_DIFFUSE.name, TEXTURE_DIFFUSE.index);
+    shader.setInt(TEXTURE_SPECULAR.name, TEXTURE_SPECULAR.index);
+    shader.setInt(TEXTURE_NORMAL.name, TEXTURE_NORMAL.index);
+    shader.setInt(TEXTURE_HEIGHT.name, TEXTURE_HEIGHT.index);
+    shader.setInt(TEXTURE_ROUGHNESS.name, TEXTURE_ROUGHNESS.index);
+    shader.setInt(TEXTURE_SHININESS.name, TEXTURE_SHININESS.index);
+    shader.setInt(TEXTURE_METALNESS.name, TEXTURE_METALNESS.index);
+    shader.setInt(TEXTURE_AMBIENT_OCCLUSION.name, TEXTURE_AMBIENT_OCCLUSION.index);
+}
+
+void setLightUniforms(Shader& shader, const std::vector<std::shared_ptr<LightGameObject>>& lights) {
+    for (const std::shared_ptr<LightGameObject>& light : lights) {
+        if (light == nullptr || light->getLightDrawData() == nullptr) {
+            continue;
+        }
+        const std::shared_ptr<LightDrawData>& lightDrawData = light->getLightDrawData();
+        shader.setVector3f("uLight.position", light->getTransform().getPosition());
+        if (lightDrawData->getLight() != nullptr) {
+            shader.setVector4f("uLight.color", lightDrawData->getLight()->albedo);
+            shader.setVector3f("uLight.ambient", lightDrawData->getLight()->ambient);
+            shader.setVector3f("uLight.diffuse", lightDrawData->getLight()->diffuse);
+            shader.setVector3f("uLight.specular", lightDrawData->getLight()->specular);
+        }
+    }
+}
+
+void drawMeshBuffers(const std::shared_ptr<Mesh>& mesh) {
+    if (mesh == nullptr) {
+        return;
+    }
+    for (const std::shared_ptr<Geometry>& geometry : mesh->getGeometryList()) {
+        if (geometry == nullptr || geometry->getVertexArray() == nullptr) {
+            continue;
+        }
         geometry->getVertexArray()->bind();
-        geometry->getVertexBuffer()->bind();
-        
-
-        if (geometry->getIsIndexed()) {
-            geometry->getIndexBuffer()->bind();
+        if (geometry->getIsIndexed() && geometry->getIndexBuffer() != nullptr) {
             glDrawElements(GL_TRIANGLES, geometry->getRawIndexDataCount(), GL_UNSIGNED_INT, 0);
         }
         else {
             glDrawArrays(GL_TRIANGLES, 0, geometry->getStructuredVertexDataCount());
         }
-        geometry->getVertexArray()->unbind();
-        geometry->getVertexBuffer()->unbind();
-        geometry->getIndexBuffer()->unbind();
     }
-    if (gameObject->getDrawData()->getShaderPhong() != nullptr) {
-        gameObject->getDrawData()->getShaderPhong()->unbind();
-    }
-    else if (gameObject->getDrawData()->getShaderPbr() != nullptr) {
-        gameObject->getDrawData()->getShaderPbr()->unbind();
-    }
-    //glDisable(GL_CULL_FACE);
+    glBindVertexArray(0);
 }
 
-void Renderer::drawModel(std::shared_ptr<ModelGameObject> modelGameObject, std::shared_ptr<Camera> camera, bool scaled) {
-    //glEnable(GL_CULL_FACE);
-    glm::mat4 modelMatrix = glm::mat4(1.0f);
-    modelMatrix = glm::translate(modelMatrix, glm::vec3(modelGameObject->getPositionX(), modelGameObject->getPositionY(), modelGameObject->getPositionZ()));
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(modelGameObject->getRotationX()), glm::vec3(1.0f, 0.0f, 0.0f));
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(modelGameObject->getRotationY()), glm::vec3(0.0f, 1.0f, 0.0f));
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(modelGameObject->getRotationZ()), glm::vec3(0.0f, 0.0f, 1.0f));
-    if (!scaled) {
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(modelGameObject->getSizeX(), modelGameObject->getSizeY(), modelGameObject->getSizeZ()));
+std::vector<InstanceData> buildInstanceData(const std::vector<const Transform*>& transforms) {
+    std::vector<InstanceData> instanceData;
+    instanceData.reserve(transforms.size());
+    for (const Transform* transform : transforms) {
+        InstanceData data;
+        data.model = transform->getModelMatrix();
+        data.inverseModel = transform->getInverseModelMatrix();
+        instanceData.push_back(data);
     }
-    else {
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(modelGameObject->getScaledSizeX(), modelGameObject->getScaledSizeY(), modelGameObject->getScaledSizeZ()));
-    }
-    glm::mat4 inverseModelMatrix = glm::transpose(glm::inverse(modelMatrix));
-    glm::mat4 viewMatrix = camera->getView();
-    glm::mat4 projectionMatrix = camera->getProjection();
-    modelGameObject->updateShaderViewData(modelMatrix, inverseModelMatrix, viewMatrix, projectionMatrix, camera->getPosition());
-    modelGameObject->updateShaderMaterial();
-    modelGameObject->updateShaderUseTexture();
-    for (auto lightGameObject : GameObjectManager::getInstance()->getLightGameObjectList()) {
-        modelGameObject->updateShaderLight(lightGameObject);
-    }
-    modelGameObject->updateShaderTime(glfwGetTime());
-    if (modelGameObject->getModelDrawData()->getShaderPhong() != nullptr && modelGameObject->getModelDrawData()->getShadingType() == SHADING_TYPE::PHONG) {
-        modelGameObject->getModelDrawData()->getShaderPhong()->bind();
-    }
-    else if (modelGameObject->getModelDrawData()->getShaderPbr() != nullptr && modelGameObject->getModelDrawData()->getShadingType() == SHADING_TYPE::PBR) {
-        modelGameObject->getModelDrawData()->getShaderPbr()->bind();
-    }
+    return instanceData;
+}
 
-    if (modelGameObject->getModelDrawData()->getTextureAlbedo() != nullptr && modelGameObject->getModelDrawData()->getUseTextureAlbedo()) {
-        modelGameObject->getModelDrawData()->getTextureAlbedo()->bind(modelGameObject->getModelDrawData()->getTextureAlbedo()->getType().index);
+template <typename T>
+void submitSingle(const T& data, const Transform& transform, const glm::mat4& view, const glm::mat4& projection,
+                  const glm::vec3& viewPos, float time, const std::vector<std::shared_ptr<LightGameObject>>& lights,
+                  Renderer::Stats& stats) {
+    const std::shared_ptr<Shader>& shader = getActiveShader(data);
+    if (shader == nullptr || shader->getShaderProgram() == 0) {
+        return;
     }
-    if (modelGameObject->getModelDrawData()->getTextureDiffuse() != nullptr && modelGameObject->getModelDrawData()->getUseTextureDiffuse()) {
-        modelGameObject->getModelDrawData()->getTextureDiffuse()->bind(modelGameObject->getModelDrawData()->getTextureDiffuse()->getType().index);
+    shader->bind();
+    shader->setBool("uInstancing", false);
+    setSharedUniforms(*shader, view, projection, viewPos, time);
+    setMaterialUniforms(*shader, data);
+    setUseTextureUniforms(*shader, data);
+    setSamplerUniforms(*shader);
+    setLightUniforms(*shader, lights);
+    shader->setMatrix4f("uModel", transform.getModelMatrix());
+    shader->setMatrix4f("uInverseModel", transform.getInverseModelMatrix());
+    bindTextures(data);
+    drawMeshBuffers(data.getMesh());
+    stats.drawCalls++;
+    stats.drawn++;
+}
+
+template <typename T>
+void submitInstanced(const T& data, const std::vector<const Transform*>& transforms, const glm::mat4& view,
+                     const glm::mat4& projection, const glm::vec3& viewPos, float time,
+                     const std::vector<std::shared_ptr<LightGameObject>>& lights, Renderer::Stats& stats) {
+    const std::shared_ptr<Shader>& shader = getActiveShader(data);
+    if (shader == nullptr || shader->getShaderProgram() == 0) {
+        return;
     }
-    if (modelGameObject->getModelDrawData()->getTextureSpecular() != nullptr && modelGameObject->getModelDrawData()->getUseTextureSpecular()) {
-        modelGameObject->getModelDrawData()->getTextureSpecular()->bind(modelGameObject->getModelDrawData()->getTextureSpecular()->getType().index);
+    const std::shared_ptr<Mesh>& mesh = data.getMesh();
+    if (mesh == nullptr) {
+        return;
     }
-    if (modelGameObject->getModelDrawData()->getTextureNormal() != nullptr && modelGameObject->getModelDrawData()->getUseTextureNormal()) {
-        modelGameObject->getModelDrawData()->getTextureNormal()->bind(modelGameObject->getModelDrawData()->getTextureNormal()->getType().index);
-    }
-    if (modelGameObject->getModelDrawData()->getTextureHeight() != nullptr && modelGameObject->getModelDrawData()->getUseTextureHeight()) {
-        modelGameObject->getModelDrawData()->getTextureHeight()->bind(modelGameObject->getModelDrawData()->getTextureHeight()->getType().index);
-    }
-    if (modelGameObject->getModelDrawData()->getTextureRoughness() != nullptr && modelGameObject->getModelDrawData()->getUseTextureRoughness()) {
-        modelGameObject->getModelDrawData()->getTextureRoughness()->bind(modelGameObject->getModelDrawData()->getTextureRoughness()->getType().index);
-    }
-    if (modelGameObject->getModelDrawData()->getTextureShininess() != nullptr && modelGameObject->getModelDrawData()->getUseTextureShininess()) {
-        modelGameObject->getModelDrawData()->getTextureShininess()->bind(modelGameObject->getModelDrawData()->getTextureShininess()->getType().index);
-    }
-    if (modelGameObject->getModelDrawData()->getTextureMetalness() != nullptr && modelGameObject->getModelDrawData()->getUseTextureMetalness()) {
-        modelGameObject->getModelDrawData()->getTextureMetalness()->bind(modelGameObject->getModelDrawData()->getTextureMetalness()->getType().index);
-    }
-    if (modelGameObject->getModelDrawData()->getTextureAmbientOcclusion() != nullptr && modelGameObject->getModelDrawData()->getUseTextureAmbientOcclusion()) {
-        modelGameObject->getModelDrawData()->getTextureAmbientOcclusion()->bind(modelGameObject->getModelDrawData()->getTextureAmbientOcclusion()->getType().index);
-    }
-    
-    for (auto geometry : modelGameObject->getModelDrawData()->getMesh()->getGeometryList()) {
+    const std::vector<InstanceData> instanceData = buildInstanceData(transforms);
+    const GLsizei instanceCount = static_cast<GLsizei>(instanceData.size());
+
+    shader->bind();
+    shader->setBool("uInstancing", true);
+    setSharedUniforms(*shader, view, projection, viewPos, time);
+    setMaterialUniforms(*shader, data);
+    setUseTextureUniforms(*shader, data);
+    setSamplerUniforms(*shader);
+    setLightUniforms(*shader, lights);
+    bindTextures(data);
+
+    for (const std::shared_ptr<Geometry>& geometry : mesh->getGeometryList()) {
+        if (geometry == nullptr || geometry->getVertexArray() == nullptr || geometry->getInstanceBuffer() == nullptr) {
+            continue;
+        }
+        geometry->getInstanceBuffer()->upload(instanceData.data(), instanceData.size() * sizeof(InstanceData));
         geometry->getVertexArray()->bind();
-        geometry->getVertexBuffer()->bind();
-        if (geometry->getIsIndexed()) {
-            geometry->getIndexBuffer()->bind();
-            glDrawElements(GL_TRIANGLES, geometry->getRawIndexDataCount(), GL_UNSIGNED_INT, 0);
+        if (geometry->getIsIndexed() && geometry->getIndexBuffer() != nullptr) {
+            glDrawElementsInstanced(GL_TRIANGLES, geometry->getRawIndexDataCount(), GL_UNSIGNED_INT, 0, instanceCount);
         }
         else {
-            glDrawArrays(GL_TRIANGLES, 0, geometry->getStructuredVertexDataCount());
+            glDrawArraysInstanced(GL_TRIANGLES, 0, geometry->getStructuredVertexDataCount(), instanceCount);
         }
-        geometry->getVertexArray()->unbind();
-        geometry->getVertexBuffer()->unbind();
-        geometry->getIndexBuffer()->unbind();
     }
-    if (modelGameObject->getModelDrawData()->getShaderPhong() != nullptr) {
-        modelGameObject->getModelDrawData()->getShaderPhong()->unbind();
-    }
-    else if (modelGameObject->getModelDrawData()->getShaderPbr() != nullptr) {
-        modelGameObject->getModelDrawData()->getShaderPbr()->unbind();
-    }
-    //glDisable(GL_CULL_FACE);
+    glBindVertexArray(0);
+    stats.drawCalls++;
+    stats.instances += instanceCount;
+    stats.drawn += instanceCount;
 }
 
-void Renderer::drawLight(std::shared_ptr<LightGameObject> lightGameObject, std::shared_ptr<Camera> camera, bool scaled) {
-    glm::mat4 modelMatrix = glm::mat4(1.0f);
-    modelMatrix = glm::translate(modelMatrix, glm::vec3(lightGameObject->getPositionX(), lightGameObject->getPositionY(), lightGameObject->getPositionZ()));
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(lightGameObject->getRotationX()), glm::vec3(1.0f, 0.0f, 0.0f));
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(lightGameObject->getRotationY()), glm::vec3(0.0f, 1.0f, 0.0f));
-    modelMatrix = glm::rotate(modelMatrix, glm::radians(lightGameObject->getRotationZ()), glm::vec3(0.0f, 0.0f, 1.0f));
-    if (!scaled) {
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(lightGameObject->getSizeX(), lightGameObject->getSizeY(), lightGameObject->getSizeZ()));
-    }
-    else {
-        modelMatrix = glm::scale(modelMatrix, glm::vec3(lightGameObject->getScaledSizeX(), lightGameObject->getScaledSizeY(), lightGameObject->getScaledSizeZ()));
-    }
-    glm::mat4 inverseModelMatrix = glm::transpose(glm::inverse(modelMatrix));
-    glm::mat4 viewMatrix = camera->getView();
-    glm::mat4 projectionMatrix = camera->getProjection();
+} // namespace
 
-    lightGameObject->updateShaderViewData(modelMatrix, inverseModelMatrix, viewMatrix, projectionMatrix, camera->getPosition());
-    lightGameObject->updateShaderColor();
-    lightGameObject->updateShaderTime(glfwGetTime());
-    lightGameObject->getLightDrawData()->getShader()->bind();
-    for (auto geometry : lightGameObject->getLightDrawData()->getMesh()->getGeometryList()) {
-        geometry->getVertexArray()->bind();
-        geometry->getVertexBuffer()->bind();
-        if (geometry->getIsIndexed()) {
-            geometry->getIndexBuffer()->bind();
-            glDrawElements(GL_TRIANGLES, geometry->getRawIndexDataCount(), GL_UNSIGNED_INT, 0);
-        }
-        else {
-            glDrawArrays(GL_TRIANGLES, 0, geometry->getStructuredVertexDataCount());
-        }
-        geometry->getVertexArray()->unbind();
-        geometry->getVertexBuffer()->unbind();
-        geometry->getIndexBuffer()->unbind();
-    }
-    lightGameObject->getLightDrawData()->getShader()->unbind();
+void Renderer::beginFrame(const Camera& camera) {
+    this->stats = Stats{};
+    this->frame.view = camera.getView();
+    this->frame.projection = camera.getProjection();
+    this->frame.viewPos = camera.getPosition();
+    this->frame.time = static_cast<float>(glfwGetTime());
+    this->frustum.update(this->frame.projection * this->frame.view);
 }
 
-void Renderer::drawSkybox(std::shared_ptr<Camera> camera) {
+bool Renderer::isVisible(const Transform& transform) const {
+    if (!this->frustum.testSphere(transform.getWorldCenter(), transform.getWorldRadius())) {
+        return false;
+    }
+    return this->frustum.testAABB(transform.getWorldAABBMin(), transform.getWorldAABBMax());
+}
+
+void Renderer::draw(const std::shared_ptr<DrawData>& drawData, const Transform& transform, const Camera& camera) {
+    const std::vector<std::shared_ptr<LightGameObject>>& lights = GameObjectManager::getInstance()->getLightGameObjectList();
+    if (drawData != nullptr) {
+        submitSingle(*drawData, transform, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+    }
+}
+
+void Renderer::drawModel(const std::shared_ptr<ModelDrawData>& modelDrawData, const Transform& transform, const Camera& camera) {
+    const std::vector<std::shared_ptr<LightGameObject>>& lights = GameObjectManager::getInstance()->getLightGameObjectList();
+    if (modelDrawData != nullptr) {
+        submitSingle(*modelDrawData, transform, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+    }
+}
+
+void Renderer::drawInstanced(const std::shared_ptr<DrawData>& drawData, const std::vector<const Transform*>& transforms, const Camera& camera) {
+    const std::vector<std::shared_ptr<LightGameObject>>& lights = GameObjectManager::getInstance()->getLightGameObjectList();
+    if (drawData != nullptr && !transforms.empty()) {
+        submitInstanced(*drawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+    }
+}
+
+void Renderer::drawInstancedModel(const std::shared_ptr<ModelDrawData>& modelDrawData, const std::vector<const Transform*>& transforms, const Camera& camera) {
+    const std::vector<std::shared_ptr<LightGameObject>>& lights = GameObjectManager::getInstance()->getLightGameObjectList();
+    if (modelDrawData != nullptr && !transforms.empty()) {
+        submitInstanced(*modelDrawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+    }
+}
+
+void Renderer::drawLight(const std::shared_ptr<LightGameObject>& lightGameObject, const Camera& camera) {
+    if (lightGameObject == nullptr || lightGameObject->getLightDrawData() == nullptr) {
+        return;
+    }
+    const std::shared_ptr<LightDrawData>& lightDrawData = lightGameObject->getLightDrawData();
+    const std::shared_ptr<Shader>& shader = lightDrawData->getShader();
+    if (shader == nullptr || shader->getShaderProgram() == 0) {
+        return;
+    }
+    const Transform& transform = lightGameObject->getTransform();
+    shader->bind();
+    shader->setBool("uInstancing", false);
+    setSharedUniforms(*shader, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time);
+    shader->setMatrix4f("uModel", transform.getModelMatrix());
+    shader->setMatrix4f("uInverseModel", transform.getInverseModelMatrix());
+    if (lightDrawData->getLight() != nullptr) {
+        shader->setVector4f("uColor", lightDrawData->getLight()->albedo);
+    }
+    drawMeshBuffers(lightDrawData->getMesh());
+    this->stats.drawCalls++;
+    this->stats.drawn++;
+}
+
+void Renderer::drawSkybox(const Camera& camera) {
+    const std::shared_ptr<Skybox> skybox = ResourceManager::getInstance()->getSkyboxByName("skybox");
+    if (skybox == nullptr || skybox->getShader() == nullptr || skybox->getMesh() == nullptr) {
+        return;
+    }
     glDisable(GL_CULL_FACE);
-    std::shared_ptr<Skybox> skybox = ResourceManager::getInstance()->getSkyboxByName("skybox");
-    glm::mat4 view = glm::mat4(glm::mat3(camera->getView()));
-    glm::mat4 projection = camera->getProjection();
-    skybox->getShader()->bind();
-    skybox->getShader()->setMatrix4f("uView", view);
-    skybox->getShader()->setMatrix4f("uProjection", projection);
-    skybox->getShader()->setInt("uSkybox", 0);
-    skybox->updateShaderColor();
-    skybox->updateShaderTime(glfwGetTime());
     glDepthFunc(GL_LEQUAL);
-    for (auto geometry : skybox->getMesh()->getGeometryList()) {
+
+    const glm::mat4 view = glm::mat4(glm::mat3(camera.getView()));
+    const std::shared_ptr<Shader>& shader = skybox->getShader();
+    shader->bind();
+    shader->setMatrix4f("uView", view);
+    shader->setMatrix4f("uProjection", camera.getProjection());
+    shader->setInt("uSkybox", 0);
+    shader->setVector4f("uColor", glm::vec4(skybox->getColorX(), skybox->getColorY(), skybox->getColorZ(), 1.0f));
+    shader->setFloat("uTime", this->frame.time);
+
+    for (const std::shared_ptr<Geometry>& geometry : skybox->getMesh()->getGeometryList()) {
+        if (geometry == nullptr || geometry->getVertexArray() == nullptr) {
+            continue;
+        }
+        if (skybox->getCubeMap() != nullptr) {
+            skybox->getCubeMap()->bind(0);
+        }
         geometry->getVertexArray()->bind();
-        geometry->getVertexBuffer()->bind();
-        skybox->getCubeMap()->bind(0);
-        if (geometry->getIsIndexed()) {
-            geometry->getIndexBuffer()->bind();
+        if (geometry->getIsIndexed() && geometry->getIndexBuffer() != nullptr) {
             glDrawElements(GL_TRIANGLES, geometry->getRawIndexDataCount(), GL_UNSIGNED_INT, 0);
         }
         else {
             glDrawArrays(GL_TRIANGLES, 0, geometry->getStructuredVertexDataCount());
         }
-        geometry->getVertexArray()->unbind();
-        geometry->getVertexBuffer()->unbind();
-        geometry->getIndexBuffer()->unbind();
     }
-    skybox->getShader()->unbind();
-    skybox->getCubeMap()->unbind();
+    glBindVertexArray(0);
+    if (skybox->getCubeMap() != nullptr) {
+        skybox->getCubeMap()->unbind();
+    }
     glDepthFunc(GL_LESS);
-
+    glEnable(GL_CULL_FACE);
+    this->stats.drawCalls++;
 }
 
-void Renderer::drawAll(std::shared_ptr<Camera> camera, bool scaled) {
-    auto gameObjectList = GameObjectManager::getInstance()->getGameObjectList();
-    for (auto gameObject : gameObjectList) {
-        draw(gameObject, camera, scaled);
+void Renderer::drawAll(const Camera& camera) {
+    const std::vector<std::shared_ptr<LightGameObject>>& lights = GameObjectManager::getInstance()->getLightGameObjectList();
+
+    std::unordered_map<const DrawData*, std::vector<const Transform*>> batches;
+    for (const std::shared_ptr<GameObject>& gameObject : GameObjectManager::getInstance()->getGameObjectList()) {
+        if (gameObject == nullptr) {
+            continue;
+        }
+        const Transform& transform = gameObject->getTransform();
+        if (!this->isVisible(transform)) {
+            this->stats.culled++;
+            continue;
+        }
+        batches[gameObject->getDrawData().get()].push_back(&transform);
+    }
+
+    for (const auto& entry : batches) {
+        const DrawData* drawData = entry.first;
+        const std::vector<const Transform*>& transforms = entry.second;
+        if (drawData == nullptr || transforms.empty()) {
+            continue;
+        }
+        if (transforms.size() > 1) {
+            submitInstanced(*drawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+        }
+        else {
+            submitSingle(*drawData, *transforms.front(), this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+        }
     }
 }
 
-void Renderer::drawAllModels(std::shared_ptr<Camera> camera, bool scaled) {
-    auto modelGameObjectList = GameObjectManager::getInstance()->getModelGameObjectList();
-    for (auto modelGameObject : modelGameObjectList) {
-        drawModel(modelGameObject, camera, scaled);
+void Renderer::drawAllModels(const Camera& camera) {
+    const std::vector<std::shared_ptr<LightGameObject>>& lights = GameObjectManager::getInstance()->getLightGameObjectList();
+
+    std::unordered_map<const ModelDrawData*, std::vector<const Transform*>> batches;
+    for (const std::shared_ptr<ModelGameObject>& modelGameObject : GameObjectManager::getInstance()->getModelGameObjectList()) {
+        if (modelGameObject == nullptr) {
+            continue;
+        }
+        const Transform& transform = modelGameObject->getTransform();
+        if (!this->isVisible(transform)) {
+            this->stats.culled++;
+            continue;
+        }
+        batches[modelGameObject->getModelDrawData().get()].push_back(&transform);
+    }
+
+    for (const auto& entry : batches) {
+        const ModelDrawData* modelDrawData = entry.first;
+        const std::vector<const Transform*>& transforms = entry.second;
+        if (modelDrawData == nullptr || transforms.empty()) {
+            continue;
+        }
+        if (transforms.size() > 1) {
+            submitInstanced(*modelDrawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+        }
+        else {
+            submitSingle(*modelDrawData, *transforms.front(), this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+        }
     }
 }
 
-
-void Renderer::drawAllLights(std::shared_ptr<Camera> camera, bool scaled) {
-    auto lightGameObjectList = GameObjectManager::getInstance()->getLightGameObjectList();
-    for (auto lightGameObject : lightGameObjectList) {
-        drawLight(lightGameObject, camera, scaled);
+void Renderer::drawAllLights(const Camera& camera) {
+    for (const std::shared_ptr<LightGameObject>& lightGameObject : GameObjectManager::getInstance()->getLightGameObjectList()) {
+        this->drawLight(lightGameObject, camera);
     }
 }
 
-void Renderer::colorBackground(glm::vec4 color) {
+void Renderer::colorBackground(const glm::vec4& color) {
     glClearColor(color.x, color.y, color.z, color.w);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 }

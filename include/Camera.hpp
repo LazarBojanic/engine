@@ -45,49 +45,49 @@ public:
     void updateProjection();
     void processKeyboard(CameraMovement direction, float deltaTime);
     void processMouseScroll(float yoffset);
-    glm::mat4 getView(){
+    const glm::mat4& getView() const {
         return this->view;
     }
-    glm::mat4 getProjection() {
+    const glm::mat4& getProjection() const {
         return this->projection;
     }
-    glm::vec3 getPosition() {
+    const glm::vec3& getPosition() const {
         return this->position;
     }
-    glm::vec3 getFront() {
+    const glm::vec3& getFront() const {
         return this->front;
     }
-    glm::vec3 getUp() {
+    const glm::vec3& getUp() const {
         return this->up;
     }
-    glm::vec3 getRight() {
+    const glm::vec3& getRight() const {
         return this->right;
     }
-    glm::vec3 getWorldUp() {
+    const glm::vec3& getWorldUp() const {
         return this->worldUp;
     }
-    float getYaw() {
+    float getYaw() const {
         return this->yaw;
     }
-    float getPitch() {
+    float getPitch() const {
         return this->pitch;
     }
-    float getMovementSpeed() {
+    float getMovementSpeed() const {
         return this->movementSpeed;
     }
-    float getMouseSensitivity() {
+    float getMouseSensitivity() const {
         return this->mouseSensitivity;
     }
-    float getZoom() {
+    float getZoom() const {
         return this->zoom;
     }
-    float getLastX() {
+    float getLastX() const {
         return this->lastX;
     }
-    float getLastY() {
+    float getLastY() const {
         return this->lastY;
     }
-    bool getFirstMouse() {
+    bool getFirstMouse() const {
         return this->firstMouse;
     }
     void setLastX(float lastX) {

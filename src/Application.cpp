@@ -3,15 +3,15 @@
 Application* Application::instance;
 
 Application::Application() {
-    this->window = new Window();
+    this->window = std::make_unique<Window>();
 }
 
 Application::Application(WindowConfig* windowConfig) {
-    this->window = new Window(windowConfig);
+    this->window = std::make_unique<Window>(windowConfig);
 }
 
 Application::Application(int width, int height, const std::string& title) {
-    this->window = new Window(width, height, title);
+    this->window = std::make_unique<Window>(width, height, title);
 }
 
 Application* Application::getInstance() {
@@ -37,7 +37,6 @@ Application* Application::getInstance(int width, int height, const std::string& 
 }
 
 Application::~Application() {
-    delete this->window;
 }
 
 

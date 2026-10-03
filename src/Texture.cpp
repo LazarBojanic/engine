@@ -19,40 +19,16 @@ Texture::Texture() {
 }
 
 Texture::Texture(const std::string& name, const std::string& path, TextureType type) {
-    this->guid = Util::generateGUID();
-    this->name = name;
-    this->path = ResourceManager::getInstance()->getAssetPath(path).string();
-    this->type = type;
-    this->mode = GL_TEXTURE_2D;
-    this->wrap_S = GL_REPEAT;
-    this->wrap_T = GL_REPEAT;
-    this->filterMin = GL_LINEAR_MIPMAP_LINEAR;
-    this->filterMax = GL_LINEAR;
-    glGenTextures(1, &this->textureID);
-    int tempWidth, tempHeight, tempNumberOfChannels;
-    stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(this->path.c_str(), &tempWidth, &tempHeight, &tempNumberOfChannels, 0);
-    if (tempNumberOfChannels == 1) {
-        this->format = GL_RED;
-    }
-    else if (tempNumberOfChannels == 2) {
-        this->format = GL_RG;
-    }
-    else if (tempNumberOfChannels == 3) {
-        this->format = GL_RGB;
-    }
-    else if (tempNumberOfChannels == 4) {
-        this->format = GL_RGBA;
-    }
-    this->width = tempWidth;
-    this->height = tempHeight;
-    this->generate(data);
-    stbi_image_free(data);
+    this->init(name, ResourceManager::getInstance()->getAssetPath(path), type);
 }
 
 Texture::Texture(const std::string& path, TextureType type) {
+    this->init("", std::filesystem::path(path), type);
+}
+
+void Texture::init(const std::string& name, const std::filesystem::path& path, TextureType type) {
     this->guid = Util::generateGUID();
-    this->name = "";
+    this->name = name;
     this->path = path;
     this->type = type;
     this->mode = GL_TEXTURE_2D;
@@ -60,9 +36,20 @@ Texture::Texture(const std::string& path, TextureType type) {
     this->wrap_T = GL_REPEAT;
     this->filterMin = GL_LINEAR_MIPMAP_LINEAR;
     this->filterMax = GL_LINEAR;
-    int tempWidth, tempHeight, tempNumberOfChannels;
+    this->format = GL_RGBA;
+    this->width = 0;
+    this->height = 0;
+    this->textureID = 0;
+
+    int tempWidth = 0;
+    int tempHeight = 0;
+    int tempNumberOfChannels = 0;
     stbi_set_flip_vertically_on_load(true);
-    unsigned char* data = stbi_load(this->path.c_str(), &tempWidth, &tempHeight, &tempNumberOfChannels, 0);
+    unsigned char* data = stbi_load(this->path.string().c_str(), &tempWidth, &tempHeight, &tempNumberOfChannels, 0);
+    if (data == nullptr) {
+        std::cerr << "ERROR::TEXTURE::FAILED_TO_LOAD: " << this->path.string() << std::endl;
+        return;
+    }
     if (tempNumberOfChannels == 1) {
         this->format = GL_RED;
     }
@@ -75,13 +62,16 @@ Texture::Texture(const std::string& path, TextureType type) {
     else if (tempNumberOfChannels == 4) {
         this->format = GL_RGBA;
     }
-    this->width = tempWidth;
-    this->height = tempHeight;
+    this->width = static_cast<unsigned int>(tempWidth);
+    this->height = static_cast<unsigned int>(tempHeight);
     this->generate(data);
     stbi_image_free(data);
 }
 
 Texture::~Texture() {
+    if (this->textureID != 0) {
+        glDeleteTextures(1, &this->textureID);
+    }
 }
 void Texture::generate(unsigned char* data) {
     glGenTextures(1, &this->textureID);

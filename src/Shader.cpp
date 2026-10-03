@@ -19,19 +19,19 @@ Shader::Shader(const std::string& name, const std::string& vertexShaderPath, con
 	this->guid = Util::generateGUID();
 	this->name = name;
 	this->shaderType = shaderType;
-	createVertexShader();
-	createFragmentShader();
+	this->createVertexShader();
+	this->createFragmentShader();
 
 	this->vertexShaderPath = ResourceManager::getInstance()->getAssetPath(vertexShaderPath).string();
 	this->fragmentShaderPath = ResourceManager::getInstance()->getAssetPath(fragmentShaderPath).string();
 
-	this->vertexShaderSource = loadShaderSource(this->vertexShaderPath);
-	this->fragmentShaderSource = loadShaderSource(this->fragmentShaderPath);
+	this->vertexShaderSource = this->loadShaderSource(this->vertexShaderPath);
+	this->fragmentShaderSource = this->loadShaderSource(this->fragmentShaderPath);
 
-	compile(this->vertexShaderID, this->vertexShaderSource);
-	compile(this->fragmentShaderID, this->fragmentShaderSource);
+	this->compile(this->vertexShaderID, this->vertexShaderSource);
+	this->compile(this->fragmentShaderID, this->fragmentShaderSource);
 
-	createProgramAndAttachShaders(this->vertexShaderID, this->fragmentShaderID);
+	this->createProgramAndAttachShaders(this->vertexShaderID, this->fragmentShaderID);
 }
 
 Shader::~Shader() {
@@ -93,45 +93,48 @@ void Shader::createProgramAndAttachShaders(unsigned int vertexShader, unsigned i
 	glDeleteShader(fragmentShader);
 }
 
-void Shader::bind() {
+void Shader::bind() const {
 	glUseProgram(this->shaderProgram);
 }
 
-void Shader::unbind() {
+void Shader::unbind() const {
 	glUseProgram(0);
 }
 
+int Shader::getUniformLocation(const std::string& uniformName) {
+	const auto found = this->uniformCache.find(uniformName);
+	if (found != this->uniformCache.end()) {
+		return found->second;
+	}
+	const int location = glGetUniformLocation(this->shaderProgram, uniformName.c_str());
+	this->uniformCache.emplace(uniformName, location);
+	return location;
+}
+
 void Shader::setBool(const std::string& name, bool value) {
-	this->bind();
-	glUniform1i(glGetUniformLocation(this->shaderProgram, name.c_str()), (int)value);
+	glUniform1i(this->getUniformLocation(name), static_cast<int>(value));
 }
 
 void Shader::setInt(const std::string& name, int value) {
-	this->bind();
-	glUniform1i(glGetUniformLocation(this->shaderProgram, name.c_str()), value);
+	glUniform1i(this->getUniformLocation(name), value);
 }
 
 void Shader::setFloat(const std::string& name, float value) {
-	this->bind();
-	glUniform1f(glGetUniformLocation(this->shaderProgram, name.c_str()), value);
+	glUniform1f(this->getUniformLocation(name), value);
 }
 
 void Shader::setVector2f(const std::string& name, const glm::vec2& value) {
-	this->bind();
-	glUniform2f(glGetUniformLocation(this->shaderProgram, name.c_str()), value.x, value.y);
+	glUniform2f(this->getUniformLocation(name), value.x, value.y);
 }
 
 void Shader::setVector3f(const std::string& name, const glm::vec3& value) {
-	this->bind();
-	glUniform3f(glGetUniformLocation(this->shaderProgram, name.c_str()), value.x, value.y, value.z);
+	glUniform3f(this->getUniformLocation(name), value.x, value.y, value.z);
 }
 
 void Shader::setVector4f(const std::string& name, const glm::vec4& value) {
-	this->bind();
-	glUniform4f(glGetUniformLocation(this->shaderProgram, name.c_str()), value.x, value.y, value.z, value.w);
+	glUniform4f(this->getUniformLocation(name), value.x, value.y, value.z, value.w);
 }
 
 void Shader::setMatrix4f(const std::string& name, const glm::mat4& value) {
-	this->bind();
-	glUniformMatrix4fv(glGetUniformLocation(this->shaderProgram, name.c_str()), 1, GL_FALSE, glm::value_ptr(value));
+	glUniformMatrix4fv(this->getUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
 }
