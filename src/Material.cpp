@@ -8,6 +8,9 @@ Material::Material(){
 	this->diffuse = glm::vec3(0.1f);
 	this->specular = glm::vec3(0.1f);
 	this->shininess = 0.1f;
+	this->metallic = 0.0f;
+	this->roughness = 0.5f;
+	this->ao = 1.0f;
 }
 
 Material::Material(const std::string& name, glm::vec4 albedo, glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float shininess){
@@ -18,6 +21,9 @@ Material::Material(const std::string& name, glm::vec4 albedo, glm::vec3 ambient,
 	this->diffuse = diffuse;
 	this->specular = specular;
 	this->shininess = shininess;
+	this->metallic = 0.0f;
+	this->roughness = 0.5f;
+	this->ao = 1.0f;
 }
 
 

@@ -12,6 +12,9 @@ public:
 	glm::vec3 diffuse;
 	glm::vec3 specular;
 	float shininess;
+	float metallic;
+	float roughness;
+	float ao;
 	Material();
 	Material(const std::string& name, glm::vec4 albedo, glm::vec3 ambient, glm::vec3 diffuse, glm::vec3 specular, float shininess);
 

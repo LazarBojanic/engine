@@ -18,6 +18,19 @@ ModelDrawData::ModelDrawData() {
     this->useTextureMetalness = false;
     this->useTextureAmbientOcclusion = false;
     this->shadingType = SHADING_TYPE::PHONG;
+    this->syncTextureUsage();
+}
+
+void ModelDrawData::syncTextureUsage() {
+    this->useTextureAlbedo = this->useTextureAlbedo && this->textureAlbedo != nullptr;
+    this->useTextureDiffuse = this->useTextureDiffuse && this->textureDiffuse != nullptr;
+    this->useTextureSpecular = this->useTextureSpecular && this->textureSpecular != nullptr;
+    this->useTextureNormal = this->useTextureNormal && this->textureNormal != nullptr;
+    this->useTextureHeight = this->useTextureHeight && this->textureHeight != nullptr;
+    this->useTextureRoughness = this->useTextureRoughness && this->textureRoughness != nullptr;
+    this->useTextureShininess = this->useTextureShininess && this->textureShininess != nullptr;
+    this->useTextureMetalness = this->useTextureMetalness && this->textureMetalness != nullptr;
+    this->useTextureAmbientOcclusion = this->useTextureAmbientOcclusion && this->textureAmbientOcclusion != nullptr;
 }
 
 
@@ -40,7 +53,17 @@ ModelDrawData::ModelDrawData(const std::string& name, const std::string& path, s
     this->directory = temp.parent_path().string();
     this->gammaCorrection = false;
     this->mesh = std::make_shared<Mesh>(name + "Mesh");
-    this->material = std::move(material);
+    if (material != nullptr) {
+        this->material = std::make_shared<Material>(material->getName(), glm::vec4(1.0f), material->ambient,
+            material->diffuse, material->specular, material->shininess);
+        this->material->metallic = material->metallic;
+        this->material->roughness = material->roughness;
+        this->material->ao = material->ao;
+    }
+    else {
+        this->material = std::make_shared<Material>();
+        this->material->albedo = glm::vec4(1.0f);
+    }
     this->shaderPhong = std::move(shaderPhong);
     this->shaderPBR = std::move(shaderPBR);
     this->useTextureAlbedo = useTextureAlbedo;
@@ -54,6 +77,7 @@ ModelDrawData::ModelDrawData(const std::string& name, const std::string& path, s
     this->useTextureAmbientOcclusion = useTextureAmbientOcclusion;
     this->shadingType = shadingType;
     this->loadAssimpModel(this->path);
+    this->syncTextureUsage();
 }
 
 
@@ -80,6 +104,7 @@ void ModelDrawData::loadAssimpModel(const std::string& path) {
         this->loadMaterialTextures(aiMat, aiTextureType_SHININESS);
         this->loadMaterialTextures(aiMat, aiTextureType_METALNESS);
         this->loadMaterialTextures(aiMat, aiTextureType_AMBIENT_OCCLUSION);
+        this->loadMaterialScalars(aiMat);
     }
 
     this->processAssimpModelNode(scene->mRootNode, scene);
@@ -158,6 +183,32 @@ std::shared_ptr<Geometry> ModelDrawData::processAssimpMesh(aiMesh* mesh, const a
 
     std::shared_ptr<Geometry> geometry = std::make_shared<Geometry>(!indices.empty(), std::move(vertices), std::move(indices));
     return geometry;
+}
+
+void ModelDrawData::loadMaterialScalars(aiMaterial* aiMaterial) {
+    if (this->material == nullptr) {
+        return;
+    }
+
+    aiColor4D baseColor;
+    if (aiMaterial->Get(AI_MATKEY_BASE_COLOR, baseColor) == AI_SUCCESS) {
+        this->material->albedo = glm::vec4(baseColor.r, baseColor.g, baseColor.b, baseColor.a);
+    }
+
+    float metallic = 0.0f;
+    if (aiMaterial->Get(AI_MATKEY_METALLIC_FACTOR, metallic) == AI_SUCCESS) {
+        this->material->metallic = metallic;
+    }
+
+    float roughness = 0.0f;
+    if (aiMaterial->Get(AI_MATKEY_ROUGHNESS_FACTOR, roughness) == AI_SUCCESS) {
+        this->material->roughness = roughness;
+    }
+
+    float shininess = 0.0f;
+    if (aiMaterial->Get(AI_MATKEY_SHININESS, shininess) == AI_SUCCESS && shininess > 0.0f) {
+        this->material->shininess = shininess;
+    }
 }
 
 void ModelDrawData::loadMaterialTextures(aiMaterial* aiMaterial, aiTextureType type) {

@@ -44,6 +44,8 @@ public:
 	void setVector3f(const std::string& name, const glm::vec3& value);
 	void setVector4f(const std::string& name, const glm::vec4& value);
 	void setMatrix4f(const std::string& name, const glm::mat4& value);
+	void setVector3fArray(const std::string& name, const glm::vec3* values, int count);
+	void setVector4fArray(const std::string& name, const glm::vec4* values, int count);
 
 	const std::string& getGUID() const {
 		return this->guid;

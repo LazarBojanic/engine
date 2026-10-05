@@ -62,6 +62,8 @@ public:
 	void processAssimpModelNode(aiNode* node, const aiScene* scene);
 	std::shared_ptr<Geometry> processAssimpMesh(aiMesh* mesh, const aiScene* scene);
 	void loadMaterialTextures(aiMaterial* aiMaterial, aiTextureType type);
+	void loadMaterialScalars(aiMaterial* aiMaterial);
+	void syncTextureUsage();
 
 	const std::string& getGUID() const {
 		return this->guid;

@@ -138,3 +138,11 @@ void Shader::setVector4f(const std::string& name, const glm::vec4& value) {
 void Shader::setMatrix4f(const std::string& name, const glm::mat4& value) {
 	glUniformMatrix4fv(this->getUniformLocation(name), 1, GL_FALSE, glm::value_ptr(value));
 }
+
+void Shader::setVector3fArray(const std::string& name, const glm::vec3* values, int count) {
+	glUniform3fv(this->getUniformLocation(name), count, glm::value_ptr(values[0]));
+}
+
+void Shader::setVector4fArray(const std::string& name, const glm::vec4* values, int count) {
+	glUniform4fv(this->getUniformLocation(name), count, glm::value_ptr(values[0]));
+}

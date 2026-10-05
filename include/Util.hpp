@@ -20,6 +20,7 @@
 class Util {
 public:
 	static constexpr unsigned int MAX_BONE_INFLUENCE = 4;
+	static constexpr int MAX_LIGHTS = 8;
 
 	static constexpr GLuint LAYOUT_LOCATION_POSITION = 0;
 	static constexpr GLuint LAYOUT_LOCATION_COLOR = 1;

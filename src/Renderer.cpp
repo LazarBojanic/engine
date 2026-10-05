@@ -9,12 +9,14 @@
 #include "Skybox.hpp"
 #include "TextureType.hpp"
 
+#include <array>
 #include <unordered_map>
 #include <vector>
 
 Renderer* Renderer::instance;
 
 Renderer::Renderer() {
+    this->exposure = 1.0f;
 }
 
 Renderer::~Renderer() {
@@ -37,11 +39,12 @@ const std::shared_ptr<Shader>& getActiveShader(const T& data) {
     return data.getShaderPhong();
 }
 
-void setSharedUniforms(Shader& shader, const glm::mat4& view, const glm::mat4& projection, const glm::vec3& viewPos, float time) {
+void setSharedUniforms(Shader& shader, const glm::mat4& view, const glm::mat4& projection, const glm::vec3& viewPos, float time, float exposure) {
     shader.setMatrix4f("uView", view);
     shader.setMatrix4f("uProjection", projection);
     shader.setVector3f("uViewPos", viewPos);
     shader.setFloat("uTime", time);
+    shader.setFloat("uExposure", exposure);
 }
 
 template <typename T>
@@ -55,6 +58,9 @@ void setMaterialUniforms(Shader& shader, const T& data) {
     shader.setVector3f("uMaterial.diffuse", material->diffuse);
     shader.setVector3f("uMaterial.specular", material->specular);
     shader.setFloat("uMaterial.shininess", material->shininess);
+    shader.setFloat("uMaterial.metallic", material->metallic);
+    shader.setFloat("uMaterial.roughness", material->roughness);
+    shader.setFloat("uMaterial.ao", material->ao);
 }
 
 template <typename T>
@@ -114,18 +120,36 @@ void setSamplerUniforms(Shader& shader) {
 }
 
 void setLightUniforms(Shader& shader, const std::vector<std::shared_ptr<LightGameObject>>& lights) {
+    static thread_local std::array<glm::vec3, Util::MAX_LIGHTS> positions;
+    static thread_local std::array<glm::vec4, Util::MAX_LIGHTS> colors;
+    static thread_local std::array<glm::vec3, Util::MAX_LIGHTS> ambients;
+
+    int count = 0;
     for (const std::shared_ptr<LightGameObject>& light : lights) {
+        if (count >= Util::MAX_LIGHTS) {
+            break;
+        }
         if (light == nullptr || light->getLightDrawData() == nullptr) {
             continue;
         }
         const std::shared_ptr<LightDrawData>& lightDrawData = light->getLightDrawData();
-        shader.setVector3f("uLight.position", light->getTransform().getPosition());
+        positions[count] = light->getTransform().getPosition();
         if (lightDrawData->getLight() != nullptr) {
-            shader.setVector4f("uLight.color", lightDrawData->getLight()->albedo);
-            shader.setVector3f("uLight.ambient", lightDrawData->getLight()->ambient);
-            shader.setVector3f("uLight.diffuse", lightDrawData->getLight()->diffuse);
-            shader.setVector3f("uLight.specular", lightDrawData->getLight()->specular);
+            colors[count] = lightDrawData->getLight()->albedo;
+            ambients[count] = lightDrawData->getLight()->ambient;
         }
+        else {
+            colors[count] = glm::vec4(1.0f);
+            ambients[count] = glm::vec3(0.0f);
+        }
+        count++;
+    }
+
+    shader.setInt("uLightCount", count);
+    if (count > 0) {
+        shader.setVector3fArray("uLightPositions", positions.data(), count);
+        shader.setVector4fArray("uLightColors", colors.data(), count);
+        shader.setVector3fArray("uLightAmbients", ambients.data(), count);
     }
 }
 
@@ -162,7 +186,8 @@ std::vector<InstanceData> buildInstanceData(const std::vector<const Transform*>&
 
 template <typename T>
 void submitSingle(const T& data, const Transform& transform, const glm::mat4& view, const glm::mat4& projection,
-                  const glm::vec3& viewPos, float time, const std::vector<std::shared_ptr<LightGameObject>>& lights,
+                  const glm::vec3& viewPos, float time, float exposure,
+                  const std::vector<std::shared_ptr<LightGameObject>>& lights,
                   Renderer::Stats& stats) {
     const std::shared_ptr<Shader>& shader = getActiveShader(data);
     if (shader == nullptr || shader->getShaderProgram() == 0) {
@@ -170,7 +195,7 @@ void submitSingle(const T& data, const Transform& transform, const glm::mat4& vi
     }
     shader->bind();
     shader->setBool("uInstancing", false);
-    setSharedUniforms(*shader, view, projection, viewPos, time);
+    setSharedUniforms(*shader, view, projection, viewPos, time, exposure);
     setMaterialUniforms(*shader, data);
     setUseTextureUniforms(*shader, data);
     setSamplerUniforms(*shader);
@@ -185,7 +210,7 @@ void submitSingle(const T& data, const Transform& transform, const glm::mat4& vi
 
 template <typename T>
 void submitInstanced(const T& data, const std::vector<const Transform*>& transforms, const glm::mat4& view,
-                     const glm::mat4& projection, const glm::vec3& viewPos, float time,
+                     const glm::mat4& projection, const glm::vec3& viewPos, float time, float exposure,
                      const std::vector<std::shared_ptr<LightGameObject>>& lights, Renderer::Stats& stats) {
     const std::shared_ptr<Shader>& shader = getActiveShader(data);
     if (shader == nullptr || shader->getShaderProgram() == 0) {
@@ -200,7 +225,7 @@ void submitInstanced(const T& data, const std::vector<const Transform*>& transfo
 
     shader->bind();
     shader->setBool("uInstancing", true);
-    setSharedUniforms(*shader, view, projection, viewPos, time);
+    setSharedUniforms(*shader, view, projection, viewPos, time, exposure);
     setMaterialUniforms(*shader, data);
     setUseTextureUniforms(*shader, data);
     setSamplerUniforms(*shader);
@@ -247,28 +272,28 @@ bool Renderer::isVisible(const Transform& transform) const {
 void Renderer::draw(const std::shared_ptr<DrawData>& drawData, const Transform& transform, const Camera& camera) {
     const std::vector<std::shared_ptr<LightGameObject>>& lights = GameObjectManager::getInstance()->getLightGameObjectList();
     if (drawData != nullptr) {
-        submitSingle(*drawData, transform, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+        submitSingle(*drawData, transform, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, this->exposure, lights, this->stats);
     }
 }
 
 void Renderer::drawModel(const std::shared_ptr<ModelDrawData>& modelDrawData, const Transform& transform, const Camera& camera) {
     const std::vector<std::shared_ptr<LightGameObject>>& lights = GameObjectManager::getInstance()->getLightGameObjectList();
     if (modelDrawData != nullptr) {
-        submitSingle(*modelDrawData, transform, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+        submitSingle(*modelDrawData, transform, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, this->exposure, lights, this->stats);
     }
 }
 
 void Renderer::drawInstanced(const std::shared_ptr<DrawData>& drawData, const std::vector<const Transform*>& transforms, const Camera& camera) {
     const std::vector<std::shared_ptr<LightGameObject>>& lights = GameObjectManager::getInstance()->getLightGameObjectList();
     if (drawData != nullptr && !transforms.empty()) {
-        submitInstanced(*drawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+        submitInstanced(*drawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, this->exposure, lights, this->stats);
     }
 }
 
 void Renderer::drawInstancedModel(const std::shared_ptr<ModelDrawData>& modelDrawData, const std::vector<const Transform*>& transforms, const Camera& camera) {
     const std::vector<std::shared_ptr<LightGameObject>>& lights = GameObjectManager::getInstance()->getLightGameObjectList();
     if (modelDrawData != nullptr && !transforms.empty()) {
-        submitInstanced(*modelDrawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+        submitInstanced(*modelDrawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, this->exposure, lights, this->stats);
     }
 }
 
@@ -284,7 +309,7 @@ void Renderer::drawLight(const std::shared_ptr<LightGameObject>& lightGameObject
     const Transform& transform = lightGameObject->getTransform();
     shader->bind();
     shader->setBool("uInstancing", false);
-    setSharedUniforms(*shader, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time);
+    setSharedUniforms(*shader, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, this->exposure);
     shader->setMatrix4f("uModel", transform.getModelMatrix());
     shader->setMatrix4f("uInverseModel", transform.getInverseModelMatrix());
     if (lightDrawData->getLight() != nullptr) {
@@ -359,10 +384,10 @@ void Renderer::drawAll(const Camera& camera) {
             continue;
         }
         if (transforms.size() > 1) {
-            submitInstanced(*drawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+            submitInstanced(*drawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, this->exposure, lights, this->stats);
         }
         else {
-            submitSingle(*drawData, *transforms.front(), this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+            submitSingle(*drawData, *transforms.front(), this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, this->exposure, lights, this->stats);
         }
     }
 }
@@ -390,10 +415,10 @@ void Renderer::drawAllModels(const Camera& camera) {
             continue;
         }
         if (transforms.size() > 1) {
-            submitInstanced(*modelDrawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+            submitInstanced(*modelDrawData, transforms, this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, this->exposure, lights, this->stats);
         }
         else {
-            submitSingle(*modelDrawData, *transforms.front(), this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, lights, this->stats);
+            submitSingle(*modelDrawData, *transforms.front(), this->frame.view, this->frame.projection, this->frame.viewPos, this->frame.time, this->exposure, lights, this->stats);
         }
     }
 }

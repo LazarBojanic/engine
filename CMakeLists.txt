@@ -53,7 +53,7 @@ include_directories(${VENDOR_DIR}/include)
 # -------------------------------
 # Source files
 # -------------------------------
-file(GLOB_RECURSE SOURCES ${PROJECT_SOURCE_DIR}/src/*.cpp)
+file(GLOB_RECURSE SOURCES CONFIGURE_DEPENDS ${PROJECT_SOURCE_DIR}/src/*.cpp)
 
 # -------------------------------
 # External source files

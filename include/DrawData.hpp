@@ -34,6 +34,8 @@ private:
 	bool useTextureAmbientOcclusion;
 	SHADING_TYPE shadingType;
 
+	void syncTextureUsage();
+
 public:
 	DrawData();
 	DrawData(const std::string& name,

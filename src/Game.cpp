@@ -105,6 +105,16 @@ void Game::initResources() {
 														 50.0f, 0.0f, 50.0f,
 														 false);
 
+	std::shared_ptr<Light> light2 = std::make_shared<Light>("light2", glm::vec4(0.3f, 0.6f, 1.0f, 1.0f), glm::vec3(0.15f), glm::vec3(0.5f), glm::vec3(0.5f));
+	std::shared_ptr<LightDrawData> lightDrawData2 = ResourceManager::getInstance()->addLightDrawData("lightDrawData2", light2, lightMesh, lightShader);
+	GameObjectManager::getInstance()->addLightGameObject("lightGameObject2", "light2", lightDrawData2,
+														 -25.0f, 30.0f, 30.0f,
+														 1.0f, 1.0f, 1.0f,
+														 6.0f, 6.0f, 6.0f,
+														 0.0f, 0.0f, 0.0f,
+														 0.0f, 0.0f, 0.0f,
+														 false);
+
 	ResourceManager::getInstance()->addSkybox("skybox", 1.0, 1.0f, 1.0f, skyboxMesh, skyboxShader, skyboxCubeMap);
 
 	std::shared_ptr<Material> cubeMaterial = ResourceManager::getInstance()->addMaterial("cubeMaterial", glm::vec4(0.0f, 1.0f, 1.0f, 1.0f), glm::vec3(0.5f), glm::vec3(0.5f), glm::vec3(0.5f), 32);
@@ -140,7 +150,7 @@ void Game::initResources() {
 		cubeShaderPhong,
 		cubeShaderPbr,
 		true, true, true, true, true, true, true, true, true,
-		SHADING_TYPE::PHONG
+		SHADING_TYPE::PBR
 		);
 
 	GameObjectManager::getInstance()->addGameObject("cubeGameObject", "cube", cubeDrawData,
@@ -152,7 +162,7 @@ void Game::initResources() {
 	                                                false);
 	this->generateCubeGrid(20, 2, 20, 10.0f, 10.0f, 10.0f, 5.0f);
 
-	std::shared_ptr<ModelDrawData> backpackModelDrawData = ResourceManager::getInstance()->addModelDrawData("backpackModelDrawData", "models/backpack/backpack.obj", cubeMaterial, cubeShaderPhong, cubeShaderPbr, SHADING_TYPE::PHONG);
+	std::shared_ptr<ModelDrawData> backpackModelDrawData = ResourceManager::getInstance()->addModelDrawData("backpackModelDrawData", "models/backpack/backpack.obj", cubeMaterial, cubeShaderPhong, cubeShaderPbr, SHADING_TYPE::PBR);
 	std::shared_ptr<ModelGameObject> backpackModelGameObject = GameObjectManager::getInstance()->addModelGameObject("backpackGameObject", "backpack", backpackModelDrawData,
 		this->backpackInitialPosition.x, this->backpackInitialPosition.y, this->backpackInitialPosition.z,
 		1, 1, 1,
@@ -216,15 +226,16 @@ void Game::update(float dt) {
 void Game::orbit(float dt) {
 	float r = 20.0f;
 
-	std::shared_ptr<LightGameObject> light = GameObjectManager::getInstance()->getLightGameObjectByTag("light");
+
+	std::shared_ptr<LightGameObject> light = GameObjectManager::getInstance()->getLightGameObjectByName("lightGameObject");
 	if (light == nullptr) {
 		return;
 	}
 
 	const glm::vec2 velXZ{ light->getSpeedX(), light->getSpeedZ() };
 	const float tangentialSpeed = glm::length(velXZ);
-
-	const float omega = tangentialSpeed / r;
+	constexpr float orbitSpeed = 0.125f;
+	const float omega = (tangentialSpeed / r) * orbitSpeed;
 
 	orbitAngle += omega * dt;
 
@@ -265,6 +276,46 @@ void Game::render() {
 
 				if (ImGui::Button("Reset Position")) {
 					backpack->getTransform().setPosition(this->backpackInitialPosition);
+				}
+
+				std::shared_ptr<ModelDrawData> backpackDrawData = backpack->getModelDrawData();
+				if (backpackDrawData != nullptr) {
+					ImGui::SeparatorText("Shader");
+
+					bool usePbr = backpackDrawData->getShadingType() == SHADING_TYPE::PBR;
+					if (ImGui::Checkbox("PBR shader", &usePbr)) {
+						backpackDrawData->setShadingType(usePbr ? SHADING_TYPE::PBR : SHADING_TYPE::PHONG);
+					}
+
+					std::shared_ptr<Material> material = backpackDrawData->getMaterial();
+					if (material != nullptr) {
+						ImGui::ColorEdit4("Base color", glm::value_ptr(material->albedo));
+						ImGui::SliderFloat("Metallic", &material->metallic, 0.0f, 1.0f, "%.3f");
+						ImGui::SliderFloat("Roughness", &material->roughness, 0.0f, 1.0f, "%.3f");
+						ImGui::SliderFloat("AO", &material->ao, 0.0f, 1.0f, "%.3f");
+
+						bool useMetalTex = backpackDrawData->getUseTextureMetalness();
+						if (ImGui::Checkbox("Metalness texture", &useMetalTex)) {
+							backpackDrawData->setUseTextureMetalness(useMetalTex);
+						}
+						bool useRoughTex = backpackDrawData->getUseTextureRoughness();
+						if (ImGui::Checkbox("Roughness texture", &useRoughTex)) {
+							backpackDrawData->setUseTextureRoughness(useRoughTex);
+						}
+						bool useAoTex = backpackDrawData->getUseTextureAmbientOcclusion();
+						if (ImGui::Checkbox("AO texture", &useAoTex)) {
+							backpackDrawData->setUseTextureAmbientOcclusion(useAoTex);
+						}
+						bool useNormalTex = backpackDrawData->getUseTextureNormal();
+						if (ImGui::Checkbox("Normal map", &useNormalTex)) {
+							backpackDrawData->setUseTextureNormal(useNormalTex);
+						}
+					}
+
+					float exposure = Renderer::getInstance()->getExposure();
+					if (ImGui::SliderFloat("Exposure", &exposure, 0.1f, 4.0f, "%.2f")) {
+						Renderer::getInstance()->setExposure(exposure);
+					}
 				}
 			} else {
 				ImGui::TextDisabled("Backpack model object not found.");

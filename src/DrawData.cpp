@@ -13,6 +13,19 @@ DrawData::DrawData() {
     this->useTextureMetalness = false;
     this->useTextureAmbientOcclusion = false;
     this->shadingType = SHADING_TYPE::PHONG;
+    this->syncTextureUsage();
+}
+
+void DrawData::syncTextureUsage() {
+    this->useTextureAlbedo = this->useTextureAlbedo && this->textureAlbedo != nullptr;
+    this->useTextureDiffuse = this->useTextureDiffuse && this->textureDiffuse != nullptr;
+    this->useTextureSpecular = this->useTextureSpecular && this->textureSpecular != nullptr;
+    this->useTextureNormal = this->useTextureNormal && this->textureNormal != nullptr;
+    this->useTextureHeight = this->useTextureHeight && this->textureHeight != nullptr;
+    this->useTextureRoughness = this->useTextureRoughness && this->textureRoughness != nullptr;
+    this->useTextureShininess = this->useTextureShininess && this->textureShininess != nullptr;
+    this->useTextureMetalness = this->useTextureMetalness && this->textureMetalness != nullptr;
+    this->useTextureAmbientOcclusion = this->useTextureAmbientOcclusion && this->textureAmbientOcclusion != nullptr;
 }
 
 DrawData::DrawData(const std::string& name,
@@ -64,6 +77,7 @@ DrawData::DrawData(const std::string& name,
     this->useTextureMetalness = useTextureMetalness;
     this->useTextureAmbientOcclusion = useTextureAmbientOcclusion;
     this->shadingType = shadingType;
+    this->syncTextureUsage();
 }
 
 DrawData::~DrawData() {

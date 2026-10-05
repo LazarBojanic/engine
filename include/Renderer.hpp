@@ -32,6 +32,7 @@ private:
 	FrameContext frame;
 	Frustum frustum;
 	Stats stats;
+	float exposure;
 
 	bool isVisible(const Transform& transform) const;
 
@@ -56,5 +57,13 @@ public:
 
 	const Stats& getStats() const {
 		return this->stats;
+	}
+
+	float getExposure() const {
+		return this->exposure;
+	}
+
+	void setExposure(float exposure) {
+		this->exposure = exposure;
 	}
 };
